@@ -143,6 +143,8 @@ const commands = [
     new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
 
+    new SlashCommandBuilder().setName('takim-listesi').setDescription('Ligdeki veya sistemdeki tüm takımları listeler.'),
+
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Ligdeki güncel puan durumunu gösterir.'),
 
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('En çok gol atan oyuncuları listeler.'),
@@ -568,6 +570,28 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [embed] });
         }
 
+        if (commandName === 'takim-listesi') {
+            const takimlar = Object.values(db.takimlar);
+
+            if (takimlar.length === 0) {
+                return interaction.reply({ content: '❌ Sistemde kayıtlı hiç takım bulunmuyor!', ephemeral: true });
+            }
+
+            let liste = "";
+            takimlar.forEach((t, i) => {
+                liste += `**${i + 1}. ${t.isim}** | Bütçe: €${(t.butce || 0).toLocaleString()} | Puan: ${t.puan || 0}\n`;
+            });
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🛡️ SİSTEMDEKİ TAKIMLAR')
+                        .setDescription(liste)
+                        .setColor('#3498db')
+                ]
+            });
+        }
+
         if (commandName === 'gol-kralligi') {
             const oyuncular = Object.values(db.oyuncular).filter(o => o.gol > 0);
 
@@ -708,7 +732,7 @@ client.on('interactionCreate', async interaction => {
             const takimlar = Object.values(db.takimlar);
 
             if (takimlar.length === 0) {
-                return interaction.reply({ content: 'Henüz kayıtlı bir takım yok. `/takim-olustur` ile takım ekleyin!', ephemeral: true });
+                return interaction.reply({ content: '❌ Henüz kayıtlı bir takım yok. `/takim-olustur` ile takım ekleyin!', ephemeral: true });
             }
 
             const sirali = takimlar.sort((a, b) => b.puan - a.puan || b.av - a.av);
