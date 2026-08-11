@@ -67,7 +67,6 @@ const UNLU_TAKIMLAR = [
     "Atletico Madrid", "Chelsea", "Napoli", "Benfica"
 ];
 
-// GÜNCEL 2026 FUTBOLCU LİSTESİ VE GERÇEK MEVKİLERİ
 const GUNCEL_FUTBOLCULAR = [
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
@@ -430,6 +429,18 @@ client.on('interactionCreate', async interaction => {
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
             if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın!', flags: 64 });
 
+            const mevcutFutbolcular = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
+            if (mevcutFutbolcular.length >= 16) {
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setTitle('❌ Kadro Dolu!')
+                        .setDescription(`Takımınızda en fazla **16 oyuncu** (11 İlk 11 + 5 Yedek) bulunabilir. Yeni transfer yapabilmek için sınır doldu.`)
+                        .setColor('#e74c3c')
+                    ], 
+                    flags: 64 
+                });
+            }
+
             const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
             const bonservisMilyon = options.getInteger('bonservis');
             const haftalikMaas = options.getInteger('haftalik-maas');
@@ -449,7 +460,7 @@ client.on('interactionCreate', async interaction => {
             hedefFutbolcu.maas = haftalikMaas;
             veriyiKaydet();
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`Tebrikler! **${hedefFutbolcu.name}**, **€${gercekBonservis.toLocaleString()}** bonservis ile **${kulup.isim}** takımına katıldı!`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`Tebrikler! **${hedefFutbolcu.name}**, **€${gercekBonservis.toLocaleString()}** bonservis ile **${kulup.isim}** takımına katıldı! (${mevcutFutbolcular.length + 1}/16)`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'kadrom') {
@@ -466,7 +477,7 @@ client.on('interactionCreate', async interaction => {
                 liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Değer: ${f.piyasaDegeri}M€ | Maaş: €${f.maas.toLocaleString()}\n`;
             });
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Haftalık Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim} (${futbolcularim.length}/16)`).setDescription(liste).addFields({ name: '💸 Toplam Haftalık Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
 
         if (commandName === 'takimlar') {
