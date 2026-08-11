@@ -41,11 +41,14 @@ let db = {
     sezonAktif: false
 };
 
+// Veritabanını güvenli bir şekilde yükleme (Var olan verileri silmeden korur)
 if (fs.existsSync(DB_FILE)) {
     try {
-        db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (!db.transferPazari) db.transferPazari = {};
-        if (!db.oyuncular) db.oyuncular = {};
+        const dosyaVerisi = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        if (dosyaVerisi.oyuncular) db.oyuncular = dosyaVerisi.oyuncular;
+        if (dosyaVerisi.takimlar) db.takimlar = dosyaVerisi.takimlar;
+        if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
+        if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
     }
@@ -128,7 +131,6 @@ const GUNCEL_FUTBOLCULAR = [
 ];
 
 function otomatikTakimlariVeFutbolculariYukle() {
-    let takimEklendi = 0;
     if (!db.takimlar) db.takimlar = {};
     UNLU_TAKIMLAR.forEach(takimIsmi => {
         const key = takimIsmi.toLowerCase();
@@ -145,11 +147,10 @@ function otomatikTakimlariVeFutbolculariYukle() {
                 butce: 150000000,
                 sonSponsor: 0
             };
-            takimEklendi++;
         }
     });
 
-    if (!db.oyuncular || Object.keys(db.oyuncular).length < 20) {
+    if (!db.oyuncular || Object.keys(db.oyuncular).length === 0) {
         db.oyuncular = {};
         GUNCEL_FUTBOLCULAR.forEach((f, index) => {
             const id = `oyuncu_${index + 1}`;
@@ -167,17 +168,10 @@ function otomatikTakimlariVeFutbolculariYukle() {
             };
         });
     }
-
     veriyiKaydet();
-    return takimEklendi;
 }
 
 const commands = [
-    new SlashCommandBuilder()
-        .setName('otomatik-kurulum')
-        .setDescription('Takımları ve güncel 2026 futbolcu havuzunu kurar (Yönetici).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
     new SlashCommandBuilder()
         .setName('futbolcu-havuzu')
         .setDescription('Transfer edilebilir güncel 2026 futbolcularını listeler.')
@@ -396,14 +390,6 @@ client.on('interactionCreate', async interaction => {
         const { commandName, options, user, channel, member, guild } = interaction;
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
-
-        if (commandName === 'otomatik-kurulum') {
-            otomatikTakimlariVeFutbolculariYukle();
-            return interaction.reply({
-                embeds: [new EmbedBuilder().setTitle('⚽ Sistem Güncellendi').setDescription(`Güncel 2026 sezonu futbolcuları (**${Object.keys(db.oyuncular).length} adet**) ve takımlar yüklendi!`).setColor('#2ecc71')],
-                flags: 64
-            });
-        }
 
         if (commandName === 'futbolcu-havuzu') {
             const sayfa = options.getInteger('sayfa') || 1;
@@ -647,7 +633,7 @@ client.on('interactionCreate', async interaction => {
             });
             db.sezonAktif = false;
             veriyiKaydet();
-            return interaction.repo({ content: '🔄 Lig sıfırlandı.', flags: 64 }); // Düzeltildi
+            return interaction.reply({ content: '🔄 Lig sıfırlandı.', flags: 64 });
         }
 
     } catch (err) {
