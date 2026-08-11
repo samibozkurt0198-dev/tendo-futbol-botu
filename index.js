@@ -434,7 +434,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder()
                         .setTitle('❌ Kadro Dolu!')
-                        .setDescription(`Takımınızda en fazla **16 oyuncu** (11 İlk 11 + 5 Yedek) bulunabilir. Yeni transfer yapabilmek için sınır doldu.`)
+                        .setDescription(`Takımınızda en fazla **16 oyuncu** (11 İlk 11 + 5 Yedek) bulunabilir.`)
                         .setColor('#e74c3c')
                     ], 
                     flags: 64 
@@ -451,8 +451,36 @@ client.on('interactionCreate', async interaction => {
 
             if (kulup.butce < gercekBonservis) return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
 
-            if (bonservisMilyon < (hedefFutbolcu.piyasaDegeri * 0.8)) {
-                return interaction.reply({ embeds: [new EmbedBuilder().setTitle('❌ Teklif Reddedildi').setDescription(`Yıldız oyuncunun kulübü bu teklifi az buldu. Daha yüksek bonservis öner.`).setColor('#e74c3c')], flags: 64 });
+            // FC26 TARZI KARŞI TEKLİF (PAZARLIK) SİSTEMİ
+            // Eğer teklif oyuncunun piyasa değerinin %70'inden azsa kulüp direkt reddeder.
+            // %70 ile %95 arasındaysa kulüp karşı teklif yapar (pazarlık başlar).
+            // %95 ve üzerindeyse direkt kabul edilir.
+            const minKabulBonservis = hedefFutbolcu.piyasaDegeri * 0.95;
+
+            if (bonservisMilyon < (hedeffutbolcu_min = hedefFutbolcu.piyasaDegeri * 0.70)) {
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setTitle('❌ Teklif Çok Düşük (Reddedildi)')
+                        .setDescription(`Yıldız oyuncunun kulübü bu teklifi komik buldu ve masadan kalktı! Oyuncunun piyasa değeri: **${hedefFutbolcu.piyasaDegeri}M€**. Daha yüksek bir teklif yapmalısın.`)
+                        .setColor('#e74c3c')
+                    ], 
+                    flags: 64 
+                });
+            }
+
+            if (bonservisMilyon < minKabulBonservis) {
+                // KARŞI TEKLİF (COUNTER OFFER)
+                const karsiBonservis = Math.round(hedefFutbolcu.piyasaDegeri * (0.95 + Math.random() * 0.15)); // Piyasa değerinin biraz üstü karşı teklif
+                const karsiMaas = Math.round(karsiBonservis * 27000);
+                
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setTitle('🤝 KULÜPTEN KARŞI TEKLİF (PAZARLIK)')
+                        .setDescription(`Teklifiniz değerlendirildi ancak kulüp daha yüksek bir bedel talep ediyor!\n\n⚽ Oyuncu: **${hedefFutbolcu.name}**\n📋 **Kulübün İstediği Karşı Teklif:**\n💰 Bonservis: **${karsiBonservis}M€**\n💶 Haftalık Maaş: **€${karsiMaas.toLocaleString()}**\n\n*(Tekrar /transfer-teklif yazarak bu fiyatlar üzerinden anlaşmayı deneyebilirsin!)*`)
+                        .setColor('#f39c12')
+                    ], 
+                    flags: 64 
+                });
             }
 
             kulup.butce -= gercekBonservis;
@@ -460,7 +488,13 @@ client.on('interactionCreate', async interaction => {
             hedefFutbolcu.maas = haftalikMaas;
             veriyiKaydet();
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`Tebrikler! **${hedefFutbolcu.name}**, **€${gercekBonservis.toLocaleString()}** bonservis ile **${kulup.isim}** takımına katıldı! (${mevcutFutbolcular.length + 1}/16)`).setColor('#2ecc71')] });
+            return interaction.reply({ 
+                embeds: [new EmbedBuilder()
+                    .setTitle('🤝 TRANSFER BAŞARILI!')
+                    .setDescription(`Tebrikler! **${hedefFutbolcu.name}**, **€${gercekBonservis.toLocaleString()}** bonservis ile **${kulup.isim}** takımına katıldı! (${mevcutFutbolcular.length + 1}/16)`)
+                    .setColor('#2ecc71')
+                ] 
+            });
         }
 
         if (commandName === 'kadrom') {
@@ -563,7 +597,7 @@ client.on('interactionCreate', async interaction => {
                     await channel.send(`📢 **MAÇ:** **${ev} vs ${dep}**`);
                     const sonuc = await canliMacOyna(channel, ev, dep, guild);
                     if (!sonuc) break;
-                    await new Promise(r => setTimeout(r, 4000));
+                    await new Prse / r => setTimeout(r, 4000);
                 }
                 if (!db.sezonAktif) break;
             }
