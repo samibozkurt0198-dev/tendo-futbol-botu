@@ -172,6 +172,10 @@ function otomatikTakimlariVeFutbolculariYukle() {
     veriyiKaydet();
 }
 
+function kullanicininTakiminiBul(userId) {
+    return Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === String(userId).trim());
+}
+
 const commands = [
     new SlashCommandBuilder()
         .setName('kayıt')
@@ -507,7 +511,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'transfer-teklif') {
-            const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const kulup = kullanicininTakiminiBul(user.id);
             if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın!', flags: 64 });
 
             const mevcutFutbolcular = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
@@ -564,7 +568,6 @@ client.on('interactionCreate', async interaction => {
             hedefFutbolcu.maas = haftalikMaas;
             veriyiKaydet();
 
-            // Transfermarkt kanalına otomatik mesaj gönder
             await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
 
             return interaction.reply({ 
@@ -577,7 +580,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'kadrom') {
-            const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const kulup = kullanicininTakiminiBul(user.id);
             if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın.', flags: 64 });
 
             const futbolcularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
@@ -605,7 +608,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'takim-sec') {
             const girilenIsim = options.getString('takim-adi').trim().toLowerCase();
-            const ztnBaskasi = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const ztnBaskasi = kullanicininTakiminiBul(user.id);
             if (ztnBaskasi) return interaction.reply({ content: `❌ Zaten ${ztnBaskasi.isim} takımı yöneticisiniz!`, flags: 64 });
 
             const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenIsim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim));
@@ -614,13 +617,13 @@ client.on('interactionCreate', async interaction => {
             const secilenTakim = db.takimlar[bulunanKey];
             if (secilenTakim.kurucu && secilenTakim.kurucu !== "Sistem") return interaction.reply({ content: '❌ Bu takımın T.D.si var!', flags: 64 });
 
-            secilenTakim.kurucu = user.id;
+            secilenTakim.kurucu = String(user.id);
             veriyiKaydet();
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${secilenTakim.isim}** teknik direktörüsün. Başarılar!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'mac-yap') {
-            const evSahibiTakim = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const evSahibiTakim = kullanicininTakiminiBul(user.id);
             if (!evSahibiTakim) return interaction.reply({ content: '❌ Maç yapabilmek için önce bir takımın T.D.si olmalısın!', flags: 64 });
 
             const rakipIsim = options.getString('rakip-takim').trim().toLowerCase();
@@ -656,7 +659,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'sponsor') {
-            const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const kulup = kullanicininTakiminiBul(user.id);
             if (!kulup) return interaction.reply({ content: '❌ T.D. olmalısın.', flags: 64 });
             const simdi = Date.now();
             if (simdi - (kulup.sonSponsor || 0) < 10800000) return interaction.reply({ content: '⏳ Sponsor için süre dolmadı.', flags: 64 });
@@ -669,7 +672,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'butce') {
-            const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            const kulup = kullanicininTakiminiBul(user.id);
             if (!kulup) return interaction.reply({ content: '❌ T.D. değilsin.', flags: 64 });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe: ${kulup.isim}`).setDescription(`Kasa: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')] });
         }
