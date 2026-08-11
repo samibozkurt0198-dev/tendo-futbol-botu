@@ -241,7 +241,6 @@ client.once('ready', async () => {
     }
 });
 
-// YENİ ÜYE KATILDIĞINDA OTOMATİK KAYITSIZ ROLÜ VERME
 client.on('guildMemberAdd', async member => {
     try {
         const kayitsizRol = member.guild.roles.cache.find(r => r.name.toLowerCase() === 'kayıtsız' || r.name.toLowerCase() === 'kayitsiz');
@@ -408,7 +407,6 @@ client.on('interactionCreate', async interaction => {
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
 
-        // KAYIT KOMUTU
         if (commandName === 'kayıt') {
             const hedefUye = options.getMember('kullanici');
             const yeniIsim = options.getString('isim');
@@ -417,10 +415,8 @@ client.on('interactionCreate', async interaction => {
             if (!hedefUye) return interaction.reply({ content: '❌ Geçerli bir kullanıcı belirtmelisin!', flags: 64 });
 
             try {
-                // İsmi güncelleme (Örnek: Okan Buruk | 25)
                 await hedefUye.setNickname(`${yeniIsim} | ${yas}`);
 
-                // Kayıtsız rolünü al, Kayıtlı rolünü ver
                 const kayitsizRol = guild.roles.cache.find(r => r.name.toLowerCase() === 'kayıtsız' || r.name.toLowerCase() === 'kayitsiz');
                 const kayitliRol = guild.roles.cache.find(r => r.name.toLowerCase() === 'üye' || r.name.toLowerCase() === 'oyuncu' || r.name.toLowerCase() === 'kayıtlı');
 
@@ -704,7 +700,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'lig-sifirla') {
             Object.values(db.takimlar).forEach(t => {
-                t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m: 0;
+                t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m = 0;
             });
             db.sezonAktif = false;
             veriyiKaydet();
