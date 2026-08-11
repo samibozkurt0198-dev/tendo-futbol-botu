@@ -160,7 +160,7 @@ const commands = [
     new SlashCommandBuilder().setName('profil').setDescription('Oyuncu profilini görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Profili görüntülenecek oyuncu')),
 
-    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Otomatik lig sezonunu başlatır.')
+    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Otomatik lig sezonunu rastgele eşleşmelerle başlatır.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder().setName('sezon-durdur').setDescription('Devam eden lig sezonunu ve maçları durdurur.')
@@ -171,7 +171,6 @@ const commands = [
         .addStringOption(opt => opt.setName('deplasman').setDescription('Deplasman Takımı').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    // Ekstra Detaylı ve Kapsamlı Yönetim Komutları (Eksiksiz Tam Liste)
     new SlashCommandBuilder().setName('para-ver').setDescription('Bir oyuncuya veya takıma para verir (Yönetici).')
         .addUserOption(opt => opt.setName('hedef').setDescription('Para verilecek kullanıcı').setRequired(true))
         .addIntegerOption(opt => opt.setName('miktar').setDescription('Miktar').setRequired(true))
@@ -539,12 +538,18 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'sezon-baslat') {
-            const takimListesi = Object.values(db.takimlar);
+            let takimListesi = Object.values(db.takimlar);
             if (takimListesi.length < 2) return interaction.reply({ content: '❌ En az 2 takım olmalı!', ephemeral: true });
+
+            // Takımları rastgele karıştır (Fisher-Yates algoritması)
+            for (let i = takimListesi.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [takimListesi[i], takimListesi[j]] = [takimListesi[j], takimListesi[i]];
+            }
 
             db.sezonAktif = true;
             veriyiKaydet();
-            await interaction.reply({ content: `🚀 **SEZON BAŞLADI!** Maçlar oynanmaya başlıyor.` });
+            await interaction.reply({ content: `🚀 **SEZON BAŞLADI!** Takımlar rastgele eşleştirildi, maçlar oynanıyor.` });
 
             for (let i = 0; i < takimListesi.length; i++) {
                 for (let j = i + 1; j < takimListesi.length; j++) {
