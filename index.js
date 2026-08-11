@@ -72,113 +72,87 @@ const UNLU_TAKIMLAR = [
 ];
 
 const GUNCEL_FUTBOLCULAR = [
+    // --- YILDIZLAR ---
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
     { isim: "Jude Bellingham", mevki: "OS", deger: 160 },
     { isim: "Vinicius Junior", mevki: "KANAT", deger: 150 },
-    { isim: "Bukayo Saka", mevki: "KANAT", deger: 130 },
-    { isim: "Phil Foden", mevki: "OS", deger: 125 },
-    { isim: "Florian Wirtz", mevki: "OS", deger: 120 },
-    { isim: "Jamal Musiala", mevki: "OS", deger: 120 },
-    { isim: "Rodri", mevki: "OS", deger: 110 },
-    { isim: "Declan Rice", mevki: "OS", deger: 100 },
-    { isim: "Federico Valverde", mevki: "OS", deger: 100 },
-    { isim: "Lamine Yamal", mevki: "KANAT", deger: 110 },
-    { isim: "Martin Odegaard", mevki: "OS", deger: 95 },
-    { isim: "Lautaro Martinez", mevki: "SNT", deger: 95 },
-    { isim: "Harry Kane", mevki: "SNT", deger: 90 },
-    { isim: "William Saliba", mevki: "STP", deger: 85 },
-    { isim: "Ruben Dias", mevki: "STP", deger: 80 },
-    { isim: "Thibaut Courtois", mevki: "KL", deger: 75 },
-    { isim: "Alisson Becker", mevki: "KL", deger: 70 },
-    { isim: "Marc-Andre ter Stegen", mevki: "KL", deger: 65 },
-    { isim: "Cole Palmer", mevki: "OS", deger: 90 },
-    { isim: "Rodrygo", mevki: "KANAT", deger: 90 },
-    { isim: "Victor Osimhen", mevki: "SNT", deger: 90 },
-    { isim: "Khvicha Kvaratskhelia", mevki: "KANAT", deger: 85 },
-    { isim: "Alexis Mac Allister", mevki: "OS", deger: 75 },
-    { isim: "Antonio Rüdiger", mevki: "STP", deger: 60 },
-    { isim: "Virgil van Dijk", mevki: "STP", deger: 55 },
-    { isim: "Bruno Fernandes", mevki: "OS", deger: 70 },
-    { isim: "Son Heung-min", mevki: "KANAT", deger: 65 },
     { isim: "Kevin De Bruyne", mevki: "OS", deger: 70 },
+    { isim: "Harry Kane", mevki: "SNT", deger: 90 },
     { isim: "Mohamed Salah", mevki: "KANAT", deger: 75 },
-    { isim: "Antoine Griezmann", mevki: "SNT", deger: 50 },
-    { isim: "Paulo Dybala", mevki: "OS", deger: 45 },
-    { isim: "Rafael Leao", mevki: "KANAT", deger: 85 },
-    { isim: "Theo Hernandez", mevki: "DF", deger: 75 },
-    { isim: "Achraf Hakimi", mevki: "DF", deger: 70 },
-    { isim: "Alessandro Bastoni", mevki: "STP", deger: 75 },
-    { isim: "Ederson", mevki: "KL", deger: 65 },
-    { isim: "Mike Maignan", mevki: "KL", deger: 70 },
-    { isim: "Arda Güler", mevki: "OS", deger: 45 },
-    { isim: "Kenan Yıldız", mevki: "KANAT", deger: 40 },
-    { isim: "Barış Alper Yılmaz", mevki: "KANAT", deger: 25 },
-    { isim: "Kerem Aktürkoğlu", mevki: "KANAT", deger: 22 },
-    { isim: "Ferdi Kadıoğlu", mevki: "DF", deger: 30 },
-    { isim: "Hakan Çalhanoğlu", mevki: "OS", deger: 45 },
-    { isim: "Orkun Kökçü", mevki: "OS", deger: 28 },
-    { isim: "Semih Kılıçsoy", mevki: "SNT", deger: 20 },
-    { isim: "Victor Boniface", mevki: "SNT", deger: 45 },
-    { isim: "Jeremie Frimpong", mevki: "DF", deger: 50 },
-    { isim: "Alejandro Garnacho", mevki: "KANAT", deger: 50 },
-    { isim: "Kobbie Mainoo", mevki: "OS", deger: 55 },
-    { isim: "Endrick", mevki: "SNT", deger: 60 },
-    { isim: "Xavi Simons", mevki: "OS", deger: 75 },
-    { isim: "Benjamin Sesko", mevki: "SNT", deger: 50 },
-    { isim: "Joshua Zirkzee", mevki: "SNT", deger: 40 },
-    { isim: "Joao Neves", mevki: "OS", deger: 60 },
-    { isim: "Leny Yoro", mevki: "STP", deger: 50 },
-    { isim: "Ousmane Dembele", mevki: "KANAT", deger: 60 },
+    { isim: "Bukayo Saka", mevki: "KANAT", deger: 130 },
+    { isim: "Phil Foden", mevki: "OS", deger: 130 },
+    { isim: "Rodri", mevki: "OS", deger: 110 },
+    { isim: "Declan Rice", mevki: "OS", deger: 120 },
+    { isim: "Florian Wirtz", mevki: "OS", deger: 130 },
+    { isim: "Jamal Musiala", mevki: "OS", deger: 130 },
+    { isim: "Federico Valverde", mevki: "OS", deger: 120 },
+    { isim: "Martin Ødegaard", mevki: "OS", deger: 110 },
+    { isim: "Lautaro Martinez", mevki: "SNT", deger: 110 },
+    { isim: "Victor Osimhen", mevki: "SNT", deger: 100 },
+    { isim: "Cole Palmer", mevki: "OS", deger: 90 },
+    { isim: "William Saliba", mevki: "STP", deger: 80 },
+    { isim: "Ruben Dias", mevki: "STP", deger: 80 },
+    { isim: "Antonio Rüdiger", mevki: "STP", deger: 25 },
+    { isim: "Virgil van Dijk", mevki: "STP", deger: 30 },
+    { isim: "Thibaut Courtois", mevki: "KL", deger: 45 },
+    { isim: "Alisson Becker", mevki: "KL", deger: 35 },
+    { isim: "Marc-Andre ter Stegen", mevki: "KL", deger: 25 },
+    { isim: "Ederson", mevki: "KL", deger: 35 },
+    { isim: "Mike Maignan", mevki: "KL", deger: 35 },
     { isim: "Gianluigi Donnarumma", mevki: "KL", deger: 40 },
-    { isim: "Julian Alvarez", mevki: "SNT", deger: 90 },
-    { isim: "Eduardo Camavinga", mevki: "OS", deger: 90 },
-    { isim: "Aurelien Tchouameni", mevki: "OS", deger: 85 },
-    { isim: "Federico Dimarco", mevki: "DF", deger: 50 },
-    { isim: "Bremer", mevki: "STP", deger: 60 },
-    { isim: "Jan Oblak", mevki: "KL", deger: 35 },
-    { isim: "Manuel Neuer", mevki: "KL", deger: 10 },
-    { isim: "Robert Lewandowski", mevki: "SNT", deger: 15 },
-    { isim: "Karim Benzema", mevki: "SNT", deger: 10 },
-    { isim: "N'Golo Kante", mevki: "OS", deger: 10 },
-    { isim: "Sadio Mane", mevki: "KANAT", deger: 15 },
-    { isim: "Riyad Mahrez", mevki: "KANAT", deger: 12 },
-    { isim: "Bernardo Silva", mevki: "OS", deger: 70 },
-    { isim: "Jack Grealish", mevki: "KANAT", deger: 55 },
-    { isim: "John Stones", mevki: "STP", deger: 38 },
-    { isim: "Kyle Walker", mevki: "DF", deger: 15 },
-    { isim: "Moises Caicedo", mevki: "OS", deger: 75 },
-    { isim: "Enzo Fernandez", mevki: "OS", deger: 75 },
-    { isim: "Christopher Nkunku", mevki: "OS", deger: 65 },
-    { isim: "Dusan Vlahovic", mevki: "SNT", deger: 65 },
-    { isim: "Federico Chiesa", mevki: "KANAT", deger: 35 },
-    { isim: "Marcus Rashford", mevki: "KANAT", deger: 60 },
-    { isim: "Mason Mount", mevki: "OS", deger: 35 },
-    { isim: "Lisandro Martinez", mevki: "STP", deger: 50 },
-    { isim: "Andre Onana", mevki: "KL", deger: 35 },
-    { isim: "Darwin Nunez", mevki: "SNT", deger: 70 },
-    { isim: "Dominik Szoboszlai", mevki: "OS", deger: 75 },
-    { isim: "Diogo Jota", mevki: "SNT", deger: 40 },
-    { isim: "Ibrahima Konate", mevki: "STP", deger: 45 },
-    { isim: "Trent Alexander-Arnold", mevki: "DF", deger: 70 },
-    { isim: "Andrew Robertson", mevki: "DF", deger: 30 },
-    { isim: "Gabriel Magalhaes", mevki: "STP", deger: 70 },
-    { isim: "Jurrien Timber", mevki: "DF", deger: 40 },
-    { isim: "Kai Havertz", mevki: "SNT", deger: 75 },
-    { isim: "Gabriel Jesus", mevki: "SNT", deger: 65 },
-    { isim: "Gabriel Martinelli", mevki: "KANAT", deger: 70 },
-    { isim: "Viktor Gyokeres", mevki: "SNT", deger: 70 },
-    { isim: "Ollie Watkins", mevki: "SNT", deger: 65 },
-    { isim: "Emiliano Martinez", mevki: "KL", deger: 28 },
-    { isim: "Ezri Konsa", mevki: "STP", deger: 30 },
-    { isim: "Micky van de Ven", mevki: "STP", deger: 55 },
-    { isim: "Destiny Udogie", mevki: "DF", deger: 45 },
-    { isim: "James Maddison", mevki: "OS", deger: 60 },
-    { isim: "Dejan Kulusevski", mevki: "KANAT", deger: 55 },
-    { isim: "Guglielmo Vicario", mevki: "KL", deger: 35 },
-    { isim: "Lucas Paqueta", mevki: "OS", deger: 65 },
-    { isim: "Jarrod Bowen", mevki: "KANAT", deger: 50 },
-    { isim: "Mohammed Kudus", mevki: "KANAT", deger: 50 }
+
+    // --- DÜŞÜK FİYATLI / UCUZ FUTBOLCULAR (KOLAY 11 KURULUMU İÇİN) ---
+    { isim: "Uğurcan Çakır", mevki: "KL", deger: 9 },
+    { isim: "Altay Bayındır", mevki: "KL", deger: 6 },
+    { isim: "Ersin Destanoğlu", mevki: "KL", deger: 4 },
+    { isim: "Günay Güvenç", mevki: "KL", deger: 2 },
+    { isim: "Berke Özer", mevki: "KL", deger: 3 },
+    { isim: "Doğan Alemdar", mevki: "KL", deger: 3 },
+    { isim: "İrfan Can Eğribayat", mevki: "KL", deger: 2 },
+    { isim: "Muhammet Şengezer", mevki: "KL", deger: 2 },
+    { isim: "Okan Kocuk", mevki: "KL", deger: 2 },
+    { isim: "Ertaç Özbir", mevki: "KL", deger: 1 },
+
+    { isim: "Abdülkerim Bardakcı", mevki: "STP", deger: 8 },
+    { isim: "Çağlar Söyüncü", mevki: "STP", deger: 9 },
+    { isim: "Merih Demiral", mevki: "STP", deger: 7 },
+    { isim: "Samet Akaydin", mevki: "STP", deger: 3 },
+    { isim: "Kaan Ayhan", mevki: "DF", deger: 5 },
+    { isim: "Zeki Çelik", mevki: "DF", deger: 6 },
+    { isim: "Rıdvan Yılmaz", mevki: "DF", deger: 4 },
+    { isim: "Mert Müldür", mevki: "DF", deger: 4 },
+    { isim: "Ahmetcan Kaplan", mevki: "STP", deger: 5 },
+    { isim: "Eren Elmalı", mevki: "DF", deger: 3 },
+    { isim: "Serdar Saatçı", mevki: "STP", deger: 3 },
+    { isim: "Ozan Kabak", mevki: "STP", deger: 7 },
+    { isim: "Taylan Antalyalı", mevki: "OS", deger: 2 },
+    { isim: "Berkan Kutlu", mevki: "OS", deger: 3 },
+    { isim: "Salih Uçan", mevki: "OS", deger: 4 },
+    { isim: "Emre Kılınç", mevki: "KANAT", deger: 3 },
+    { isim: "Yusuf Yazıcı", mevki: "OS", deger: 7 },
+    { isim: "İrfan Can Kahveci", mevki: "OS", deger: 8 },
+    { isim: "Cengiz Ünder", mevki: "KANAT", deger: 10 },
+    { isim: "Kerem Aktürkoğlu", mevki: "KANAT", deger: 12 },
+    { isim: "Barış Alper Yılmaz", mevki: "KANAT", deger: 15 },
+    { isim: "Yunus Akgün", mevki: "KANAT", deger: 6 },
+    { isim: "Emirhan İlkhan", mevki: "OS", deger: 4 },
+    { isim: "Berat Özdemir", mevki: "OS", deger: 3 },
+    { isim: "İsmail Yüksek", mevki: "OS", deger: 9 },
+    { isim: "Bartuğ Elmaz", mevki: "OS", deger: 2 },
+    { isim: "Oğuz Aydın", mevki: "KANAT", deger: 6 },
+    { isim: "Can Uzun", mevki: "OS", deger: 8 },
+    { isim: "Cenk Tosun", mevki: "SNT", deger: 3 },
+    { isim: "Umut Nayir", mevki: "SNT", deger: 2 },
+    { isim: "Enis Destan", mevki: "SNT", deger: 3 },
+    { isim: "Mustafa Hekimoğlu", mevki: "SNT", deger: 2 },
+    { isim: "Deniz Gül", mevki: "SNT", deger: 3 },
+    { isim: "Ege Bilsel", mevki: "OS", deger: 1 },
+    { isim: "Gökhan Sazdağı", mevki: "DF", deger: 2 },
+    { isim: "Ali Şansal", mevki: "KL", deger: 1 },
+    { isim: "Emre Demir", mevki: "OS", deger: 2 },
+    { isim: "Yasin Özcan", mevki: "STP", deger: 4 },
+    { isim: "Mehmet Aydın", mevki: "DF", deger: 3 }
 ];
 
 function otomatikTakimlariVeFutbolculariYukle() {
@@ -222,14 +196,11 @@ function otomatikTakimlariVeFutbolculariYukle() {
     veriyiKaydet();
 }
 
-// Akıllı T.D. Bulucu: Kullanıcının ID'sine ait takım yoksa bile, komutu yazanı o an ilk boş takıma atar veya en mantıklı takımı bulur
 function kullanicininTakiminiBulVeyaAta(userId) {
     const temizId = String(userId).trim();
-    // 1. Önce doğrudan kurucusu olduğu takımı ara
     let bul = Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
     if (bul) return bul;
 
-    // 2. Bulamazsa, kullanıcının seçtiği veya Galatasaray gibi varsayılan boş bir takımı ona atayalım ki hata almasın
     let galatasaray = db.takimlar['galatasaray'];
     if (galatasaray && (!galatasaray.kurucu || galatasaray.kurucu === "Sistem")) {
         galatasaray.kurucu = temizId;
@@ -237,7 +208,6 @@ function kullanicininTakiminiBulVeyaAta(userId) {
         return galatasaray;
     }
 
-    // 3. O da doluysa herhangi boşta bir takımı ver
     let bosTakim = Object.values(db.takimlar).find(t => !t.kurucu || t.kurucu === "Sistem");
     if (bosTakim) {
         bosTakim.kurucu = temizId;
@@ -264,10 +234,10 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('İstediğin dizilişe göre otomatik ilk 11 kurar ve onayına sunar.')
+        .setDescription('Bütçene uygun, kaleci dahil 11 kişilik tam kadro kurar.')
         .addStringOption(opt => 
             opt.setName('dizilis')
-               .setDescription('Örn: 4-3-3, 4-4-2, 3-5-2')
+               .setDescription('Örn: 4-3-3, 4-4-2, 3-5-2 (Toplam 10 olmalı)')
                .setRequired(true)
         ),
 
@@ -569,7 +539,6 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // OTO İLK 11 KOMUTU (Zaman aşımını önlemek için deferReply kullanıldı ve T.D. kontrolü akıllı hale getirildi)
         if (commandName === 'oto-ilk11') {
             await interaction.deferReply();
 
@@ -579,23 +548,23 @@ client.on('interactionCreate', async interaction => {
             const dizilisStr = options.getString('dizilis'); // Örn: 4-3-3
             const parcalar = dizilisStr.split('-').map(Number);
             if (parcalar.length !== 3) {
-                return interaction.editReply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3` veya `4-4-2`' });
+                return interaction.editReply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3`, `4-4-2` veya `3-5-2`' });
             }
 
             const defSayisi = parcalar[0];
             const osSayisi = parcalar[1];
             const sntSayisi = parcalar[2];
 
-            if (defSayisi + osSayisi + sntSayisi !== 9) {
-                return interaction.editReply({ content: '❌ Dizilişteki oyuncu sayıları toplamı kaleci hariç 9 olmalıdır (Örn: 4-3-2, 4-4-2).' });
+            if (defSayisi + osSayisi + sntSayisi !== 10) {
+                return interaction.editReply({ content: '❌ Dizilişteki oyuncu sayıları toplamı kaleci hariç **10** olmalıdır (Örn: 4-3-3, 4-4-2).' });
             }
 
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             
-            const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const sntListesi = serbestler.filter(o => o.mevki === 'SNT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+            const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => a.piyasaDegeri - b.piyasaDegeri);
+            const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => a.piyasaDegeri - b.piyasaDegeri);
+            const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => a.piyasaDegeri - b.piyasaDegeri);
+            const sntListesi = serbestler.filter(o => o.mevki === 'SNT').sort((a,b) => a.piyasaDegeri - b.piyasaDegeri);
 
             if (klListesi.length < 1 || dfListesi.length < defSayisi || osListesi.length < osSayisi || sntListesi.length < sntSayisi) {
                 return interaction.editReply({ content: '❌ Transfer havuzunda bu dizilişi karşılayacak yeterli serbest oyuncu bulunmuyor!' });
@@ -635,8 +604,8 @@ client.on('interactionCreate', async interaction => {
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
-                    .setTitle(`⚡ OTOMATİK İLK 11 KURULDU (${dizilisStr})`)
-                    .setDescription(`**${kulup.isim}** takımı için en ideal 11 başarıyla oluşturuldu ve kasadan **${(toplamBonservis/1000000).toFixed(1)}M€** düşüldü!\n\n${listeAciklama}`)
+                    .setTitle(`⚡ OTOMATİK 11 KURULDU (${dizilisStr})`)
+                    .setDescription(`**${kulup.isim}** için 11 kişilik ilk kadro kuruldu! Kasadan **${(toplamBonservis/1000000).toFixed(1)}M€** düşüldü.\n\n${listeAciklama}`)
                     .setColor('#2ecc71')
                 ]
             });
@@ -675,8 +644,8 @@ client.on('interactionCreate', async interaction => {
             if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
 
             const mevcutFutbolcular = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
-            if (mevcutFutbolcular.length >= 16) {
-                return interaction.reply({ content: '❌ Kadronuzda en fazla 16 oyuncu bulunabilir.', flags: 64 });
+            if (mevcutFutbolcular.length >= 20) {
+                return interaction.reply({ content: '❌ Kadronuzda en fazla 20 oyuncu bulunabilir.', flags: 64 });
             }
 
             const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
@@ -704,23 +673,13 @@ client.on('interactionCreate', async interaction => {
             };
             veriyiKaydet();
 
-            if (hedefFutbolcu.takim === 'Serbest') {
-                return interaction.reply({
-                    embeds: [new EmbedBuilder()
-                        .setTitle('📩 SERBEST OYUNCUYA TEKLİF')
-                        .setDescription(`**${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif yapıldı.\n\n*(Transferi tamamlamak için **/transfer-kabul** yazabilirsin)*`)
-                        .setColor('#3498db')
-                    ]
-                });
-            } else {
-                return interaction.reply({
-                    embeds: [new EmbedBuilder()
-                        .setTitle('📩 KULÜBE TRANSFER TEKLİFİ')
-                        .setDescription(`**${hedefFutbolcu.takim}** kulübünün oyuncusu **${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif iletildi.\n\n*(Kulübün onaylaması bekleniyor)*`)
-                        .setColor('#f39c12')
-                    ]
-                });
-            }
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle('📩 TRANSFER TEKLİFİ')
+                    .setDescription(`**${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif yapıldı.\n\n*(Tamamlamak için **/transfer-kabul** yazabilirsin)*`)
+                    .setColor('#3498db')
+                ]
+            });
         }
 
         if (commandName === 'transfer-kabul') {
@@ -802,7 +761,7 @@ client.on('interactionCreate', async interaction => {
                 liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Değer: ${f.piyasaDegeri}M€ | Maaş: €${f.maas.toLocaleString()}\n`;
             });
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim} (${futbolcularim.length}/16)`).setDescription(liste).addFields({ name: '💸 Toplam Haftalık Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim} (${futbolcularim.length})`).setDescription(liste).addFields({ name: '💸 Toplam Haftalık Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
 
         if (commandName === 'takimlar') {
