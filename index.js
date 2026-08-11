@@ -451,13 +451,9 @@ client.on('interactionCreate', async interaction => {
 
             if (kulup.butce < gercekBonservis) return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
 
-            // FC26 TARZI KARŞI TEKLİF (PAZARLIK) SİSTEMİ
-            // Eğer teklif oyuncunun piyasa değerinin %70'inden azsa kulüp direkt reddeder.
-            // %70 ile %95 arasındaysa kulüp karşı teklif yapar (pazarlık başlar).
-            // %95 ve üzerindeyse direkt kabul edilir.
             const minKabulBonservis = hedefFutbolcu.piyasaDegeri * 0.95;
 
-            if (bonservisMilyon < (hedeffutbolcu_min = hedefFutbolcu.piyasaDegeri * 0.70)) {
+            if (bonservisMilyon < (hedefFutbolcu.piyasaDegeri * 0.70)) {
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder()
                         .setTitle('❌ Teklif Çok Düşük (Reddedildi)')
@@ -469,8 +465,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             if (bonservisMilyon < minKabulBonservis) {
-                // KARŞI TEKLİF (COUNTER OFFER)
-                const karsiBonservis = Math.round(hedefFutbolcu.piyasaDegeri * (0.95 + Math.random() * 0.15)); // Piyasa değerinin biraz üstü karşı teklif
+                const karsiBonservis = Math.round(hedefFutbolcu.piyasaDegeri * (0.95 + Math.random() * 0.15));
                 const karsiMaas = Math.round(karsiBonservis * 27000);
                 
                 return interaction.reply({ 
@@ -597,7 +592,7 @@ client.on('interactionCreate', async interaction => {
                     await channel.send(`📢 **MAÇ:** **${ev} vs ${dep}**`);
                     const sonuc = await canliMacOyna(channel, ev, dep, guild);
                     if (!sonuc) break;
-                    await new Prse / r => setTimeout(r, 4000);
+                    await new Promise(r => setTimeout(r, 4000));
                 }
                 if (!db.sezonAktif) break;
             }
