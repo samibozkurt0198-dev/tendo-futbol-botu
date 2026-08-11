@@ -40,6 +40,7 @@ let db = {
     transferPazari: {},
     gecici11ler: {},
     macTahminleri: {},
+    aktifMaclar: {},
     sezonAktif: false,
     transferKanalId: null
 };
@@ -52,6 +53,7 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
         if (dosyaVerisi.gecici11ler) db.gecici11ler = dosyaVerisi.gecici11ler;
         if (dosyaVerisi.macTahminleri) db.macTahminleri = dosyaVerisi.macTahminleri;
+        if (dosyaVerisi.aktifMaclar) db.aktifMaclar = dosyaVerisi.aktifMaclar;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
     } catch (e) {
@@ -76,7 +78,6 @@ const UNLU_TAKIMLAR = [
 ];
 
 const GUNCEL_FUTBOLCULAR = [
-    // --- ESKİ YILDIZLAR ---
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
     { isim: "Jude Bellingham", mevki: "OS", deger: 160 },
@@ -106,10 +107,8 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Mike Maignan", mevki: "KL", deger: 35 },
     { isim: "Gianluigi Donnarumma", mevki: "KL", deger: 40 },
 
-    // --- EKSTRA 50+ YENİ DÜNYA YILDIZI ---
     { isim: "Lamine Yamal", mevki: "KANAT", deger: 140 },
     { isim: "Rodrygo", mevki: "KANAT", deger: 100 },
-    { isim: "Bukayo Saka", mevki: "KANAT", deger: 130 },
     { isim: "Rafael Leao", mevki: "KANAT", deger: 90 },
     { isim: "Khvicha Kvaratskhelia", mevki: "KANAT", deger: 85 },
     { isim: "Son Heung-min", mevki: "KANAT", deger: 50 },
@@ -160,7 +159,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Diogo Costa", mevki: "KL", deger: 45 },
     { isim: "Jan Oblak", mevki: "KL", deger: 25 },
 
-    // --- UCUZ YERLİ / ALTERNATİF FUTBOLCULAR ---
     { isim: "Uğurcan Çakır", mevki: "KL", deger: 9 },
     { isim: "Altay Bayındır", mevki: "KL", deger: 6 },
     { isim: "Ersin Destanoğlu", mevki: "KL", deger: 4 },
@@ -310,8 +308,13 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('tahmin')
-        .setDescription('Oynanacak maç için skor tahmini yaparsınız ve bilene +50M€ kazandırır.')
-        .addStringOption(opt => opt.setName('rakip-takim').setDescription('Maç yapılacak takım adı').setRequired(true))
+        .setDescription('Şu an oynanan veya aktif maçlar için skor tahmini yaparsınız (+50M€ ödüllü).')
+        .addStringOption(opt => 
+            opt.setName('mac')
+               .setDescription('Tahmin yapılacak maçı seçin')
+               .setRequired(true)
+               .setAutocomplete(true)
+        )
         .addStringOption(opt => opt.setName('skor').setDescription('Tahmin edilen skor (Örn: 3-1)').setRequired(true)),
 
     new SlashCommandBuilder()
@@ -397,7 +400,7 @@ const olaylar = [
     { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} takımından **{oyuncu}** harika bir vuruşla fileleri havalandırdı! Asist: **{asist}**. Skor: {skor}", tip: "gol" },
     { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} yıldızı **{oyuncu}** tribünleri coşturan harika bir gol attı! Harika pası veren: **{asist}**. Skor: {skor}", tip: "gol" },
     { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} atağında **{oyuncu}** şutunu çekti ama kaleci devleşti.", tip: "normal" },
-    { netin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
+    { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
     { metin: "{dakika}' - 📐 **KORNER!** {hücum} köşe vuruşu kazandı, tehlikeli orta geliyor.", tip: "normal" },
     { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, direkt patladı!", tip: "normal" },
     { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" }
@@ -458,8 +461,12 @@ async function transferDuyurusuGonder(guild, takimIsmi, oyuncuAdi, bonservisMily
 
 function tahminleriKontrolEtVeOdulVer(evSahibi, deplasman, evSkor, depSkor, channel) {
     if (!db.macTahminleri) return;
-    const macKey = `${evSahibi}-${deplasman}`.toLowerCase();
+    const macKey = `${evSahibi} vs ${deplasman}`.toLowerCase();
     const gercekSkorStr = `${evSkor}-${depSkor}`;
+
+    if (db.aktifMaclar && db.aktifMaclar[macKey]) {
+        delete db.aktifMaclar[macKey];
+    }
 
     Object.keys(db.macTahminleri).forEach(userId => {
         const tahminVerisi = db.macTahminleri[userId];
@@ -472,8 +479,6 @@ function tahminleriKontrolEtVeOdulVer(evSahibi, deplasman, evSkor, depSkor, chan
             }
         }
     });
-    // Tahminleri temizle
-    db.macTahminleri = {};
     veriyiKaydet();
 }
 
@@ -483,22 +488,20 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
         let depSkor = 0;
         let mevcutDakika = 1;
         let ilkYariBitti = false;
+        const macAdi = `${evSahibi} vs ${deplasman}`;
+
+        if (!db.aktifMaclar) db.aktifMaclar = {};
+        db.aktifMaclar[macAdi.toLowerCase()] = macAdi;
+        veriyiKaydet();
 
         const baslangicEmbed = new EmbedBuilder()
-            .setTitle(`🎙️ MAÇ | ${evSahibi} vs ${deplasman}`)
-            .setDescription(`Karşılaşma hakemin düdüğüyle başladı!`)
+            .setTitle(`🎙️ MAÇ | ${macAdi}`)
+            .setDescription(`Karşılaşma hakemin düdüğüyle başladı! Şimdi \`/tahmin\` komutu ile bu maç için skor tahmininde bulunabilirsiniz!`)
             .setColor('#e74c3c');
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
 
         const macInterval = setInterval(async () => {
-            if (!db.sezonAktif) {
-                clearInterval(macInterval);
-                await channel.send(`🛑 Maç durduruldu!`).catch(() => {});
-                resolve(false);
-                return;
-            }
-
             mevcutDakika += Math.floor(Math.random() * 4) + 3;
 
             if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
@@ -510,7 +513,7 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
             if (mevcutDakika >= 90) {
                 clearInterval(macInterval);
                 const bitisEmbed = new EmbedBuilder()
-                    .setTitle(`🏁 MAÇ BİTTİ! | ${evSahibi} vs ${deplasman}`)
+                    .setTitle(`🏁 MAÇ BİTTİ! | ${macAdi}`)
                     .setDescription(`**MAÇ SONUCU:** **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`)
                     .setColor('#2ecc71');
 
@@ -534,7 +537,6 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
             
-            // Kaleci gol atamaz kuralı: Gol atan oyuncu KL olamaz
             let golAtan = rastgeleFutbolcuSec(hucumTakim);
             let denemeSayisi = 0;
             while (golAtan.mevki === 'KL' && denemeSayisi < 5) {
@@ -575,7 +577,7 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
 
             await channel.send(anlatim).catch(() => {});
 
-        }, 5000);
+        }, 4000);
     });
 }
 
@@ -606,6 +608,18 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
 }
 
 client.on('interactionCreate', async interaction => {
+    if (interaction.isAutocomplete()) {
+        const focusedOption = interaction.options.getFocused(true);
+        if (focusedOption.name === 'mac') {
+            const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
+            const filtrelenmis = aktifler.filter(m => m.toLowerCase().includes(focusedOption.value.toLowerCase())).slice(0, 25);
+            await interaction.respond(
+                filtrelenmis.map(m => ({ name: m, value: m }))
+            ).catch(() => {});
+        }
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     try {
@@ -663,7 +677,7 @@ client.on('interactionCreate', async interaction => {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
             if (!kulup) return interaction.editReply({ content: '❌ Ligde atanabileceğiniz takım kalmadı!' });
 
-            const dizilisStr = options.getString('dizilis'); // Örn: 4-3-3
+            const dizilisStr = options.getString('dizilis');
             const parcalar = dizilisStr.split('-').map(Number);
             if (parcalar.length !== 3) {
                 return interaction.editReply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3`, `4-4-2` veya `3-5-2`' });
@@ -679,7 +693,6 @@ client.on('interactionCreate', async interaction => {
 
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             
-            // Yıldız ve ucuz oyuncuları karıştırıp verimli bir 11 oluşturuyoruz (İçinde 2-3 yıldız olacak şekilde)
             const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
@@ -692,24 +705,20 @@ client.on('interactionCreate', async interaction => {
             const secilenler = [];
             let toplamBonservis = 0;
 
-            // Kaleci (ekonomik)
             const secKaleci = klListesi[klListesi.length - 1]; 
             secilenler.push(secKaleci);
             toplamBonservis += secKaleci.piyasaDegeri * 1000000;
 
-            // Defanslar (1 yıldız, geri kalanı ekonomik)
             for (let i = 0; i < defSayisi; i++) {
                 let secim = (i === 0 && dfListesi.length > 5) ? dfListesi[1] : dfListesi[dfListesi.length - 1 - i];
                 secilenler.push(secim);
                 toplamBonservis += secim.piyasaDegeri * 1000000;
             }
-            // Orta sahalar (1 yıldız, geri kalanı ekonomik)
             for (let i = 0; i < osSayisi; i++) {
                 let secim = (i === 0 && osListesi.length > 5) ? osListesi[2] : osListesi[osListesi.length - 1 - i];
                 secilenler.push(secim);
                 toplamBonservis += secim.piyasaDegeri * 1000000;
             }
-            // Forvetler (1 süper yıldız Mbappe/Haaland vb., geri kalanı ekonomik)
             for (let i = 0; i < sntSayisi; i++) {
                 let secim = (i === 0 && sntListesi.length > 2) ? sntListesi[0] : sntListesi[sntListesi.length - 1 - i];
                 secilenler.push(secim);
@@ -720,7 +729,6 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply({ content: `❌ Bu dengeli ilk 11'in maliyeti **${(toplamBonservis/1000000).toFixed(1)}M€**, fakat kasanda **${(kulup.butce/1000000).toFixed(1)}M€** var!` });
             }
 
-            // Geçici olarak kaydet (Onay bekleniyor)
             if (!db.gecici11ler) db.gecici11ler = {};
             db.gecici11ler[user.id] = {
                 takimIsmi: kulup.isim,
@@ -738,7 +746,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setTitle(`⚡ ÖNİZLEME: OTOMATİK İLK 11 (${dizilisStr})`)
-                    .setDescription(`**${kulup.isim}** için hazırlanan kadro yukarıdadır (İçerisinde yıldız oyuncular da bulunmaktadır).\nToplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\`\n👉 Reddetmek için: \`/11-reddet\``)
+                    .setDescription(`**${kulup.isim}** için hazırlanan kadro yukarıdadır.\nToplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\`\n👉 Reddetmek için: \`/11-reddet\``)
                     .setColor('#f1c40f')
                 ]
             });
@@ -746,7 +754,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === '11-onayla') {
             if (!db.gecici11ler || !db.gecici11ler[user.id]) {
-                return interaction.reply({ content: '❌ Onay bekleyen bir ilk 11 kadronuz bulunmuyor! Önce `/oto-ilk11` kullanmalısınız.', flags: 64 });
+                return interaction.reply({ content: '❌ Onay bekleyen bir ilk 11 kadronuz bulunmuyor!', flags: 64 });
             }
 
             const veri = db.gecici11ler[user.id];
@@ -774,7 +782,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('✅ KADRO ONAYLANDI VE KURULDU!')
-                    .setDescription(`**${kulup.isim}** kadrosu resmen oluşturuldu! Kasadan **${(veri.toplamMaliyet/1000000).toFixed(1)}M€** düşüldü.\n\n${liste}`)
+                    .setDescription(`**${kulup.isim}** kadrosu resmen oluşturuldu!\n\n${liste}`)
                     .setColor('#2ecc71')
                 ]
             });
@@ -786,19 +794,20 @@ client.on('interactionCreate', async interaction => {
             }
             delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ content: '❌ Otomatik 11 önerisi başarıyla reddedildi ve iptal edildi.', flags: 64 });
+            return interaction.reply({ content: '❌ Otomatik 11 önerisi reddedildi.', flags: 64 });
         }
 
         if (commandName === 'tahmin') {
-            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Önce kendine bir takım seçmelisin!', flags: 64 });
-
-            const rakipIsim = options.getString('rakip-takim').trim();
+            const secilenMac = options.getString('mac');
             const skor = options.getString('skor').trim();
+
+            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) {
+                return interaction.reply({ content: '❌ Şu anda bu maç oynanmıyor veya geçerli bir aktif maç seçmediniz!', flags: 64 });
+            }
 
             if (!db.macTahminleri) db.macTahminleri = {};
             db.macTahminleri[user.id] = {
-                mac: `${kulup.isim}-${rakipIsim}`,
+                mac: secilenMac,
                 skor: skor
             };
             veriyiKaydet();
@@ -806,7 +815,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('🎯 TAHMİN KAYDEDİLDİ!')
-                    .setDescription(`**${kulup.isim} vs ${rakipIsim}** maçı için skor tahminin: **${skor}** olarak alındı.\nMaç sonucunu doğru bilirsen kulübüne **+50M€** eklenecek!`)
+                    .setDescription(`**${secilenMac}** karşılaşması için skor tahminin: **${skor}** olarak alındı.\nMaç sonucunu doğru bilirsen kulübüne **+50M€** eklenecek!`)
                     .setColor('#3498db')
                 ]
             });
@@ -1078,6 +1087,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'sezon-durdur') {
             db.sezonAktif = false;
+            db.aktifMaclar = {};
             veriyiKaydet();
             return interaction.reply({ content: '🛑 Sezon ve devam eden maçlar durduruldu!', flags: 64 });
         }
@@ -1087,6 +1097,7 @@ client.on('interactionCreate', async interaction => {
                 t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m = 0;
             });
             db.sezonAktif = false;
+            db.aktifMaclar = {};
             veriyiKaydet();
             return interaction.reply({ content: '🔄 Lig sıfırlandı.', flags: 64 });
         }
