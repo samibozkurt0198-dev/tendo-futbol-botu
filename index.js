@@ -198,6 +198,14 @@ const commands = [
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları ve maaşları gösterir.'),
     new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
+    
+    new SlashCommandBuilder()
+        .setName('butce-ver')
+        .setDescription('İstediğiniz takıma bütçe ekler (Yönetici).')
+        .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı (Örn: Galatasaray)').setRequired(true))
+        .addIntegerOption(opt => opt.setName('miktar').setDescription('Eklenecek Miktar (Milyon € cinsinden)').setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder().setName('gol-sesi-kanal').setDescription('Gol ses kanalı ayarlar.')
         .addChannelOption(opt => opt.setName('kanal').setDescription('Ses Kanalı').addChannelTypes(ChannelType.GuildVoice).setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
@@ -568,6 +576,28 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe: ${kulup.isim}`).setDescription(`Kasa: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')] });
         }
 
+        if (commandName === 'butce-ver') {
+            const girilenTakim = options.getString('takim-adi').trim().toLowerCase();
+            const miktarMilyon = options.getInteger('miktar');
+            const eklenenPara = miktarMilyon * 1000000;
+
+            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenTakim));
+            if (!bulunanKey) return interaction.reply({ content: '❌ Belirtilen isimde takım bulunamadı!', flags: 64 });
+
+            const hedefTakim = db.takimlar[bulunanKey];
+            hedefTakim.butce += eklenenPara;
+            veriyiKaydet();
+
+            return interaction.reply({ 
+                embeds: [new EmbedBuilder()
+                    .setTitle('💰 BÜTÇE EKLENDİ')
+                    .setDescription(`**${hedefTakim.isim}** takımının kasasına **€${eklenenPara.toLocaleString()}** eklendi!\nYeni Toplam Kasa: **€${hedefTakim.butce.toLocaleString()}**`)
+                    .setColor('#2ecc71')
+                ],
+                flags: 64 
+            });
+        }
+
         if (commandName === 'puan-durumu') {
             const takimlar = Object.values(db.takimlar).sort((a, b) => b.puan - a.puan || b.av - a.av);
             let liste = "";
@@ -617,7 +647,7 @@ client.on('interactionCreate', async interaction => {
             });
             db.sezonAktif = false;
             veriyiKaydet();
-            return interaction.reply({ content: '🔄 Lig sıfırlandı.', flags: 64 });
+            return interaction.repo({ content: '🔄 Lig sıfırlandı.', flags: 64 }); // Düzeltildi
         }
 
     } catch (err) {
