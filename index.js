@@ -41,7 +41,6 @@ let db = {
     sezonAktif: false
 };
 
-// Veritabanını güvenli bir şekilde yükleme (Var olan verileri silmeden korur)
 if (fs.existsSync(DB_FILE)) {
     try {
         const dosyaVerisi = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -187,6 +186,12 @@ const commands = [
     new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları ve bütçeleri listeler.'),
     new SlashCommandBuilder().setName('takim-sec').setDescription('Bir takımın Teknik Direktörü olursunuz.')
         .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı').setRequired(true)),
+    
+    new SlashCommandBuilder()
+        .setName('mac-yap')
+        .setDescription('T.D. olan başka bir takımla canlı maç yaparsınız.')
+        .addStringOption(opt => opt.setName('rakip-takim').setDescription('Maç yapmak istediğin rakip takımın adı').setRequired(true)),
+
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Güncel puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları ve maaşları gösterir.'),
@@ -264,7 +269,7 @@ async function golSesiCal(guild) {
     } catch(e) {}
 }
 
-function canliMacOyna(channel, evSahibi, deplasman, guild) {
+function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
     return new Promise(async (resolve) => {
         let evSkor = 0;
         let depSkor = 0;
@@ -272,20 +277,13 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
         let ilkYariBitti = false;
 
         const baslangicEmbed = new EmbedBuilder()
-            .setTitle(`🎙️ CANLI MAÇ | ${evSahibi} vs ${deplasman}`)
-            .setDescription(`Karşılaşma hakemin düdüğüyle başladı!`)
+            .setTitle(`🎙️ ÖZEL MAÇ | ${evSahibi} vs ${deplasman}`)
+            .setDescription(`Derbi / Karşılaşma hakemin düdüğüyle başladı!`)
             .setColor('#e74c3c');
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
 
-        aktifMacInterval = setInterval(async () => {
-            if (!db.sezonAktif) {
-                clearInterval(aktifMacInterval);
-                aktifMacInterval = null;
-                resolve(false);
-                return;
-            }
-
+        const macInterval = setInterval(async () => {
             mevcutDakika += Math.floor(Math.random() * 4) + 3;
 
             if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
@@ -295,8 +293,7 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
             }
 
             if (mevcutDakika >= 90) {
-                clearInterval(aktifMacInterval);
-                aktifMacInterval = null;
+                clearInterval(macInterval);
                 const bitisEmbed = new EmbedBuilder()
                     .setTitle(`🏁 MAÇ BİTTİ! | ${evSahibi} vs ${deplasman}`)
                     .setDescription(`**MAÇ SONUCU:** **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`)
@@ -343,7 +340,7 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
 
             await channel.send(anlatim).catch(() => {});
 
-        }, 6000);
+        }, 5000);
     });
 }
 
@@ -387,7 +384,7 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        const { commandName, options, user, channel, member, guild } = interaction;
+        const { commandName, options, user, channel, guild } = interaction;
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
 
@@ -428,7 +425,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder()
                         .setTitle('❌ Kadro Dolu!')
-                        .setDescription(`Takımınızda en fazla **16 oyuncu** (11 İlk 11 + 5 Yedek) bulunabilir.`)
+                        .setDescription(`Takımınızda en fazla **16 oyuncu** bulunabilir.`)
                         .setColor('#e74c3c')
                     ], 
                     flags: 64 
@@ -451,7 +448,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder()
                         .setTitle('❌ Teklif Çok Düşük (Reddedildi)')
-                        .setDescription(`Yıldız oyuncunun kulübü bu teklifi komik buldu ve masadan kalktı! Oyuncunun piyasa değeri: **${hedefFutbolcu.piyasaDegeri}M€**. Daha yüksek bir teklif yapmalısın.`)
+                        .setDescription(`Yıldız oyuncunun kulübü bu teklifi reddetti! Piyasa değeri: **${hedefFutbolcu.piyasaDegeri}M€**.`)
                         .setColor('#e74c3c')
                     ], 
                     flags: 64 
@@ -464,8 +461,8 @@ client.on('interactionCreate', async interaction => {
                 
                 return interaction.reply({ 
                     embeds: [new EmbedBuilder()
-                        .setTitle('🤝 KULÜPTEN KARŞI TEKLİF (PAZARLIK)')
-                        .setDescription(`Teklifiniz değerlendirildi ancak kulüp daha yüksek bir bedel talep ediyor!\n\n⚽ Oyuncu: **${hedefFutbolcu.name}**\n📋 **Kulübün İstediği Karşı Teklif:**\n💰 Bonservis: **${karsiBonservis}M€**\n💶 Haftalık Maaş: **€${karsiMaas.toLocaleString()}**\n\n*(Tekrar /transfer-teklif yazarak bu fiyatlar üzerinden anlaşmayı deneyebilirsin!)*`)
+                        .setTitle('🤝 KULÜPTEN KARŞI TEKLİF')
+                        .setDescription(`Kulüp daha yüksek bonservis istiyor!\n\n⚽ Oyuncu: **${hedefFutbolcu.name}**\n💰 Karşı Teklif Bonservis: **${karsiBonservis}M€**\n💶 Maaş: **€${karsiMaas.toLocaleString()}**`)
                         .setColor('#f39c12')
                     ], 
                     flags: 64 
@@ -480,7 +477,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ 
                 embeds: [new EmbedBuilder()
                     .setTitle('🤝 TRANSFER BAŞARILI!')
-                    .setDescription(`Tebrikler! **${hedefFutbolcu.name}**, **€${gercekBonservis.toLocaleString()}** bonservis ile **${kulup.isim}** takımına katıldı! (${mevcutFutbolcular.length + 1}/16)`)
+                    .setDescription(`**${hedefFutbolcu.name}**, **${kulup.isim}** takımına katıldı!`)
                     .setColor('#2ecc71')
                 ] 
             });
@@ -529,6 +526,29 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${secilenTakim.isim}** teknik direktörüsün. Başarılar!`).setColor('#2ecc71')] });
         }
 
+        // YENİ EKlenen MAÇ YAP KOMUTU
+        if (commandName === 'mac-yap') {
+            const evSahibiTakim = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            if (!evSahibiTakim) return interaction.reply({ content: '❌ Maç yapabilmek için önce bir takımın T.D.si olmalısın!', flags: 64 });
+
+            const rakipIsim = options.getString('rakip-takim').trim().toLowerCase();
+            const rakipKey = Object.keys(db.takimlar).find(k => k === rakipIsim || db.takimlar[k].isim.toLowerCase().includes(rakipIsim));
+            if (!rakipKey) return interaction.reply({ content: '❌ Belirttiğin rakip takım bulunamadı!', flags: 64 });
+
+            const deplasmanTakim = db.takimlar[rakipKey];
+            if (evSahibiTakim.isim === deplasmanTakim.isim) {
+                return interaction.reply({ content: '❌ Kendi takımınla maç yapamazsın!', flags: 64 });
+            }
+
+            if (!deplasmanTakim.kurucu || deplasmanTakim.kurucu === "Sistem") {
+                return interaction.reply({ content: `❌ **${deplasmanTakim.isim}** takımının başında bir Teknik Direktör yok! Sadece T.D. olan takımlarla maç yapabilirsin.`, flags: 64 });
+            }
+
+            await interaction.reply({ content: `⚔️ **${evSahibiTakim.isim}** ve **deplasmanTakim.isim** arasındaki özel kapışma başlatılıyor...` });
+            await tekilCanliMacOyna(channel, evSahibiTakim.isim, deplasmanTakim.isim, guild);
+            return;
+        }
+
         if (commandName === 'gol-kralligi') {
             const oyuncular = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
             if (oyuncular.length === 0) return interaction.reply({ content: 'Henüz gol atan oyuncu yok.', flags: 64 });
@@ -567,7 +587,7 @@ client.on('interactionCreate', async interaction => {
             const miktarMilyon = options.getInteger('miktar');
             const eklenenPara = miktarMilyon * 1000000;
 
-            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenTakim));
+            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim));
             if (!bulunanKey) return interaction.reply({ content: '❌ Belirtilen isimde takım bulunamadı!', flags: 64 });
 
             const hedefTakim = db.takimlar[bulunanKey];
@@ -577,7 +597,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ 
                 embeds: [new EmbedBuilder()
                     .setTitle('💰 BÜTÇE EKLENDİ')
-                    .setDescription(`**${hedefTakim.isim}** takımının kasasına **€${eklenenPara.toLocaleString()}** eklendi!\nYeni Toplam Kasa: **€${hedefTakim.butce.toLocaleString()}**`)
+                    .setDescription(`**${hedefTakim.isim}** takımına **€${eklenenPara.toLocaleString()}** eklendi!`)
                     .setColor('#2ecc71')
                 ],
                 flags: 64 
@@ -606,7 +626,7 @@ client.on('interactionCreate', async interaction => {
                     const dep = takimListesi[j].isim;
 
                     await channel.send(`📢 **MAÇ:** **${ev} vs ${dep}**`);
-                    const sonuc = await canliMacOyna(channel, ev, dep, guild);
+                    const sonuc = await tekilCanliMacOyna(channel, ev, dep, guild);
                     if (!sonuc) break;
                     await new Promise(r => setTimeout(r, 4000));
                 }
