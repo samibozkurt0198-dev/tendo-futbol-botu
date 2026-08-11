@@ -11,6 +11,11 @@ const http = require('http');
 const fs = require('fs');
 require('dotenv').config();
 
+// --- AYARLAR ---
+// Lütfen buraya sunucundaki "Kayıt Yetkilisi" rolünün ID'sini yaz:
+const YETKILI_ROL_ID = 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ';
+// ---------------
+
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Tendo Bot 7/24 Aktif!');
@@ -48,44 +53,20 @@ function veriyiKaydet() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-// Seçilebilir Hazır Futbolcu Listesi
-const FUTBOLCU_LISTESI = [
-    { name: 'Victor Osimhen', mevki: 'ST', overall: 87 },
-    { name: 'Mauro Icardi', mevki: 'ST', overall: 83 },
-    { name: 'Lionel Messi', mevki: 'RW', overall: 88 },
-    { name: 'Cristiano Ronaldo', mevki: 'ST', overall: 86 },
-    { name: 'Kylian Mbappé', mevki: 'ST', overall: 91 },
-    { name: 'Erling Haaland', mevki: 'ST', overall: 91 },
-    { name: 'Jude Bellingham', mevki: 'CAM', overall: 90 },
-    { name: 'Vinicius Jr.', mevki: 'LW', overall: 89 },
-    { name: 'Kevin De Bruyne', mevki: 'CM', overall: 90 },
-    { name: 'Mohamed Salah', mevki: 'RW', overall: 89 },
-    { name: 'Harry Kane', mevki: 'ST', overall: 90 },
-    { name: 'Robert Lewandowski', mevki: 'ST', overall: 88 },
-    { name: 'Luka Modric', mevki: 'CM', overall: 85 },
-    { name: 'Virgil van Dijk', mevki: 'CB', overall: 89 },
-    { name: 'Thibaut Courtois', mevki: 'GK', overall: 89 },
-    { name: 'Edin Dzeko', mevki: 'ST', overall: 81 },
-    { name: 'Dusan Tadic', mevki: 'LW', overall: 81 },
-    { name: 'Rafa Silva', mevki: 'CAM', overall: 83 },
-    { name: 'Ciro Immobile', mevki: 'ST', overall: 81 },
-    { name: 'Barış Alper Yılmaz', mevki: 'RW', overall: 78 }
-];
-
+// YETKİLİ KAYIT KOMUTU (Futbolcu seçimi kaldırıldı)
 const kayitCommand = new SlashCommandBuilder()
     .setName('kayit')
-    .setDescription('Hazır futbolcu havuzundan bir oyuncu seçerek profil oluşturur.')
-    .addStringOption(opt => {
-        opt.setName('futbolcu')
-           .setDescription('Almak istediğiniz futbolcuyu seçin')
-           .setRequired(true);
-        
-        // Listeyi seçim menüsüne aktar
-        FUTBOLCU_LISTESI.forEach(f => {
-            opt.addChoices({ name: `${f.name} (${f.mevki} - ${f.overall})`, value: f.name });
-        });
-        return opt;
-    });
+    .setDescription('Bir kullanıcıyı sisteme kaydeder (Sadece Kayıt Yetkilisi).')
+    .addUserOption(opt => 
+        opt.setName('kisi')
+           .setDescription('Kaydedilecek kullanıcıyı seçin')
+           .setRequired(true)
+    )
+    .addStringOption(opt => 
+        opt.setName('isim')
+           .setDescription('Kullanıcıya verilecek oyuncu adı/lakabı')
+           .setRequired(true)
+    );
 
 const commands = [
     kayitCommand,
@@ -157,7 +138,7 @@ function rastgeleOyuncuSec() {
     if (tumu.length > 0) {
         return tumu[Math.floor(Math.random() * tumu.length)];
     }
-    return { name: "Osimhen", id: null };
+    return { name: "Bilinmeyen Oyuncu", id: null };
 }
 
 function canliMacOyna(channel, evSahibi, deplasman) {
@@ -280,27 +261,25 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        const { commandName, options, user, channel } = interaction;
+        const { commandName, options, user, channel, member } = interaction;
 
         if (commandName === 'kayit') {
-            const secilenIsim = options.getString('futbolcu');
-
-            // Futbolcu daha önce başka biri tarafından seçilmiş mi kontrol et
-            const alinmisMi = Object.values(db.oyuncular).some(o => o.name === secilenIsim);
-            if (alinmisMi) {
+            // YETKİ KONTROLÜ
+            if (YETKILI_ROL_ID !== 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(YETKILI_ROL_ID)) {
                 return interaction.reply({ 
-                    content: `❌ **${secilenIsim}** daha önce başka bir oyuncu tarafından seçildi! Lütfen başka bir futbolcu seçin.`, 
+                    content: "❌ Bu komutu kullanmak için 'Kayıt Yetkilisi' rolüne sahip olmalısınız!", 
                     ephemeral: true 
                 });
             }
 
-            const futbolcuVerisi = FUTBOLCU_LISTESI.find(f => f.name === secilenIsim);
+            const hedefKullanici = options.getUser('kisi');
+            const yeniIsim = options.getString('isim');
 
-            db.oyuncular[user.id] = { 
-                id: user.id,
-                name: futbolcuVerisi.name, 
-                mevki: futbolcuVerisi.mevki, 
-                overall: futbolcuVerisi.overall, 
+            db.oyuncular[hedefKullanici.id] = { 
+                id: hedefKullanici.id,
+                name: yeniIsim, 
+                mevki: 'ST', 
+                overall: 75, 
                 gol: 0,
                 sakatlik: false,
                 cezali: false,
@@ -312,13 +291,13 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle('⚽ Futbolcu Seçimi Başarılı!')
-                        .setDescription(`Artık sahalarda **${futbolcuVerisi.name}** olarak mücadele edeceksiniz!`)
+                        .setTitle('✅ Oyuncu Kaydı Başarılı!')
+                        .setDescription(`**<@${hedefKullanici.id}>** kullanıcısı **${yeniIsim}** adıyla sisteme eklendi!`)
                         .setColor('#00ff00')
                         .addFields(
-                            { name: 'Futbolcu', value: futbolcuVerisi.name, inline: true },
-                            { name: 'Mevki', value: futbolcuVerisi.mevki, inline: true },
-                            { name: 'Başlangıç Reytingi', value: `${futbolcuVerisi.overall}`, inline: true }
+                            { name: 'Oyuncu Adı', value: yeniIsim, inline: true },
+                            { name: 'Başlangıç Reytingi', value: '75', inline: true },
+                            { name: 'Kaydeden Yetkili', value: `<@${user.id}>`, inline: true }
                         )
                 ]
             });
@@ -447,7 +426,7 @@ client.on('interactionCreate', async interaction => {
             const oyuncu = db.oyuncular[user.id];
 
             if (!oyuncu) {
-                return interaction.reply({ content: '❌ Önce `/kayit` komutu ile bir futbolcu seçmelisiniz.', ephemeral: true });
+                return interaction.reply({ content: '❌ Kayıtlı bir profiliniz bulunamadı. Lütfen yetkililerden sizi kaydetmesini isteyin.', ephemeral: true });
             }
 
             if (oyuncu.overall >= 99) {
@@ -616,4 +595,3 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
