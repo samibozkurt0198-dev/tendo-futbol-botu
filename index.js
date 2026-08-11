@@ -42,11 +42,12 @@ let db = {
     transferKanalId: null
 };
 
+// Veritabanı varsa yükle, yoksa oluştur (T.D. ve kadrolar kalıcı kalır)
 if (fs.existsSync(DB_FILE)) {
     try {
         const dosyaVerisi = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (dosyaVerisi.oyuncular) db.oyuncular = dosyaVerisi.oyuncular;
-        if (dosyaVerisi.takimlar) db.takimlar = dosyaVerisi.takimlar;
+        if (dosyaVerisi.oyuncular && Object.keys(dosyaVerisi.oyuncular).length > 0) db.oyuncular = dosyaVerisi.oyuncular;
+        if (dosyaVerisi.takimlar && Object.keys(dosyaVerisi.takimlar).length > 0) db.takimlar = dosyaVerisi.takimlar;
         if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
@@ -250,7 +251,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('transfer-kabul')
-        .setDescription('Gelen karşı teklifi onaylar.')
+        .setDescription('Gelen transfer teklifini veya kulüp yanıtını onaylar.')
         .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Futbolcunun adı').setRequired(true)),
 
     new SlashCommandBuilder()
@@ -598,57 +599,32 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
             }
 
+            // Teklif verisini geçici olarak sakla
+            if (!db.transferPazari) db.transferPazari = {};
+            db.transferPazari[hedefFutbolcu.id] = {
+                alanKulup: kulup.isim,
+                bonservis: bonservisMilyon,
+                gercekBonservis: gercekBonservis,
+                maas: haftalikMaas
+            };
+            veriyiKaydet();
+
             if (hedefFutbolcu.takim === 'Serbest') {
-                if (bonservisMilyon < (hedefFutbolcu.piyasaDegeri * 0.70)) {
-                    return interaction.reply({ embeds: [new EmbedBuilder().setTitle('❌ Teklif Reddedildi').setDescription(`Oyuncu teklifinizi çok düşük buldu. Piyasa değeri: ${hedefFutbolcu.piyasaDegeri}M€`).setColor('#e74c3c')], flags: 64 });
-                }
-                kulup.butce -= gercekBonservis;
-                hedefFutbolcu.takim = kulup.isim;
-                hedefFutbolcu.maas = haftalikMaas;
-                veriyiKaydet();
-
-                await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
-                return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`**${hedefFutbolcu.name}** serbest oyuncu olarak kadroya katıldı!`).setColor('#2ecc71')] });
+                return interaction.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('📩 SERBEST OYUNCUYA TEKLİF')
+                        .setDescription(`**${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif yapıldı.\n\n*(Transferi tamamlamak için **/transfer-kabul** yazabilirsin)*`)
+                        .setColor('#3498db')
+                    ]
+                });
             } else {
-                const eskiTakimAdi = hedefFutbolcu.takim;
-                const sans = Math.random();
-
-                if (sans < 0.40) {
-                    return interaction.reply({
-                        embeds: [new EmbedBuilder()
-                            .setTitle('❌ TRANSFER REDDEDİLDİ')
-                            .setDescription(`**${eskiTakimAdi}** yönetimi, **${hedefFutbolcu.name}** için yapılan **${bonservisMilyon}M€** teklifini kesinlikle reddetti!`)
-                            .setColor('#e74c3c')
-                        ]
-                    });
-                } else if (sans < 0.70) {
-                    const yeniBonservis = Math.round(bonservisMilyon * 1.3);
-                    return interaction.reply({
-                        embeds: [new EmbedBuilder()
-                            .setTitle('🤝 KULÜPTEN KARŞI TEKLİF VAR')
-                            .setDescription(`**${eskiTakimAdi}** yönetimi teklifinizi revize etti:\n\n⚽ Oyuncu: **${hedefFutbolcu.name}**\n💰 İstenen Bonservis: **${yeniBonservis}M€**\n\n*(Teklifi kabul etmek için /transfer-kabul, karşı teklif için /transfer-karsi-teklif kullanabilirsin)*`)
-                            .setColor('#f39c12')
-                        ]
-                    });
-                } else {
-                    kulup.butce -= gercekBonservis;
-                    const eskiTakimKey = Object.keys(db.takimlar).find(k => db.takimlar[k].isim === eskiTakimAdi);
-                    if (eskiTakimKey) {
-                        db.takimlar[eskiTakimKey].butce += gercekBonservis;
-                    }
-                    hedefFutbolcu.takim = kulup.isim;
-                    hedefFutbolcu.maas = haftalikMaas;
-                    veriyiKaydet();
-
-                    await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
-                    return interaction.reply({
-                        embeds: [new EmbedBuilder()
-                            .setTitle('🔥 KULÜPLERARASI TRANSFER BAŞARILI!')
-                            .setDescription(`**${eskiTakimAdi}** ile anlaşmaya varıldı! **${hedefFutbolcu.name}** artık **${kulup.isim}** forması giyecek.`)
-                            .setColor('#2ecc71')
-                        ]
-                    });
-                }
+                return interaction.reply({
+                    embeds: [new EmbedBuilder()
+                        .setTitle('📩 KULÜBE TRANSFER TEKLİFİ')
+                        .setDescription(`**${hedefFutbolcu.takim}** kulübünün oyuncusu **${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif iletildi.\n\n*(Kulübün onaylaması veya kabul etmesi bekleniyor)*`)
+                        .setColor('#f39c12')
+                    ]
+                });
             }
         }
 
@@ -660,20 +636,33 @@ client.on('interactionCreate', async interaction => {
             const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi));
             if (!hedefFutbolcu) return interaction.reply({ content: '❌ Bu isimde bir futbolcu bulunamadı!', flags: 64 });
 
-            const maliyet = hedefFutbolcu.piyasaDegeri * 1000000;
-            if (kulup.butce < maliyet) return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
+            const teklifBilgisi = db.transferPazari && db.transferPazari[hedefFutbolcu.id];
+            const bonservisMilyon = teklifBilgisi ? teklifBilgisi.bonservis : hedefFutbolcu.piyasaDegeri;
+            const gercekBonservis = teklifBilgisi ? teklifBilgisi.gercekBonservis : (hedefFutbolcu.piyasaDegeri * 1000000);
+            const haftalikMaas = teklifBilgisi ? teklifBilgisi.maas : hedefFutbolcu.maas;
 
-            kulup.butce -= maliyet;
+            if (kulup.butce < gercekBonservis) {
+                return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
+            }
+
+            kulup.butce -= gercekBonservis;
             const eskiTakimAdi = hedefFutbolcu.takim;
             if (eskiTakimAdi !== 'Serbest') {
                 const eskiTakimKey = Object.keys(db.takimlar).find(k => db.takimlar[k].isim === eskiTakimAdi);
-                if (eskiTakimKey) db.takimlar[eskiTakimKey].butce += maliyet;
+                if (eskiTakimKey) {
+                    db.takimlar[eskiTakimKey].butce += gercekBonservis;
+                }
             }
 
             hedefFutbolcu.takim = kulup.isim;
+            hedefFutbolcu.maas = haftalikMaas;
+            
+            if (db.transferPazari && db.transferPazari[hedefFutbolcu.id]) {
+                delete db.transferPazari[hedefFutbolcu.id];
+            }
             veriyiKaydet();
 
-            await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, hedefFutbolcu.piyasaDegeri, hedefFutbolcu.maas);
+            await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('🤝 TRANSFER BAŞARILI!')
@@ -688,10 +677,17 @@ client.on('interactionCreate', async interaction => {
             if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın!', flags: 64 });
 
             const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
+            const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi));
+            
+            if (hedefFutbolcu && db.transferPazari && db.transferPazari[hedefFutbolcu.id]) {
+                delete db.transferPazari[hedefFutbolcu.id];
+                veriyiKaydet();
+            }
+
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('❌ TRANSFER İPTAL EDİLDİ')
-                    .setDescription(`**${futbolcuAdi.toUpperCase()}** için yapılan görüşmeler sonlandırıldı.`)
+                    .setDescription(`Görüşmeler ve teklif sonlandırıldı.`)
                     .setColor('#e74c3c')
                 ]
             });
@@ -720,13 +716,16 @@ client.on('interactionCreate', async interaction => {
             }
 
             hedefFutbolcu.takim = kulup.isim;
+            if (db.transferPazari && db.transferPazari[hedefFutbolcu.id]) {
+                delete db.transferPazari[hedefFutbolcu.id];
+            }
             veriyiKaydet();
 
             await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, yeniBonservis, hedefFutbolcu.maas);
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setTitle('🔥 KARŞI TEKLİF KABUL EDİLDİ!')
-                    .setDescription(`Teklifiniz onaylandı! **${hedefFutbolcu.name}** artık **${kulup.isim}** forması giyecek.`)
+                    .setDescription(`Karşı teklifiniz onaylandı! **${hedefFutbolcu.name}** artık **${kulup.isim}** forması giyecek.`)
                     .setColor('#2ecc71')
                 ]
             });
