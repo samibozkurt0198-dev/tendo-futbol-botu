@@ -10,7 +10,7 @@ const {
 const http = require('http');
 require('dotenv').config();
 
-// Render'ın kapanmaması için sahte web sunucusu (Port dinleyici)
+// Web sunucusu (Render için)
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Tendo Bot 7/24 Aktif!');
@@ -29,14 +29,12 @@ const client = new Client({
     ]
 });
 
-// Veritabanı
 const db = {
     oyuncular: new Map(),
     takimlar: new Map(),
     sezonAktif: false
 };
 
-// Slash Komutlar
 const commands = [
     new SlashCommandBuilder().setName('kayit').setDescription('Oyuncu profili oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Oyuncu Adı Soyadı').setRequired(true))
@@ -47,7 +45,7 @@ const commands = [
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3').setRequired(true)),
     new SlashCommandBuilder().setName('sezon-baslat').setDescription('Sezonu başlatır ve kanallara duyuru atar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('mac-oyna').setDescription('30 dakikalık canlı spikerli maç başlatır.')
+    new SlashCommandBuilder().setName('mac-oyna').setDescription('Canlı spikerli maç başlatır.')
         .addStringOption(opt => opt.setName('ev-sahibi').setDescription('Ev Sahibi Takım').setRequired(true))
         .addStringOption(opt => opt.setName('deplasman').setDescription('Deplasman Takımı').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -72,34 +70,44 @@ function findChannelByName(guild, name) {
     return guild.channels.cache.find(c => c.name.toLowerCase().includes(name.toLowerCase()) && c.isTextBased());
 }
 
+// Olaylar ve Ağırlıkları (Kırmızı kart ihtimali düşürüldü, pozisyonlar artırıldı)
 const olaylar = [
-    "{dakika}' - ⚽ **GOOOOL!** {hücum} inanılmaz bir şutla topu ağlara gönderiyor! Skor: {skor}",
-    "{dakika}' - 🟨 **SARI KART!** {defans} yaptığı sert müdahale sonrası sarı kart görüyor.",
-    "{dakika}' - 🟥 **KIRMIZI KART!** {defans} son adam olarak rakibini düşürdü!",
-    "{dakika}' - 🧤 **NE NEFİS KURTARIŞ!** {hücum} şutunu çekti ama kaleci çıkardı.",
-    "{dakika}' - 💥 **DIŞARI GİTTİ!** Top az farkla avuta çıktı.",
-    "{dakika}' - 📐 **KORNER!** Tehlikeli bir köşe vuruşu şansı.",
-    "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** Harika bir şut ama direk!"
+    { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} harika bir organizasyonla golü buluyor! Skor: {skor}", tip: "gol" },
+    { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} ceza sahası dışından jeneriklik bir gol attı! Skor: {skor}", tip: "gol" },
+    { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} net pozisyondan yararlanamadı, kaleci devleşti.", tip: "normal" },
+    { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** Top az farkla direğin yanından avuta çıktı.", tip: "normal" },
+    { metin: "{dakika}' - 📐 **KORNER!** Tehlikeli bir köşe vuruşu organizasyonu.", tip: "normal" },
+    { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** Sert şut direkte patladı!", tip: "normal" },
+    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} orta alanda rakibini indirdi.", tip: "normal" },
+    { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} çok sert müdahale sonrası oyundan atıldı!", tip: "kirmizi" }
 ];
 
 async function canliMacOyna(channel, evSahibi, deplasman) {
     let evSkor = 0;
     let depSkor = 0;
     let mevcutDakika = 1;
+    let ilkYariBitti = false;
 
     const baslangicEmbed = new EmbedBuilder()
         .setTitle(`🎙️ CANLI SPİKER | ${evSahibi} vs ${deplasman}`)
-        .setDescription(`Maç başladı! 30 dakikalık heyecan başlıyor.`)
+        .setDescription(`Maç başladı! Keyifli seyirler.`)
         .setColor('#e74c3c')
         .setTimestamp();
 
     await channel.send({ embeds: [baslangicEmbed] });
 
     const macInterval = setInterval(async () => {
-        if (mevcutDakika === 45) {
+        // Zamanı daha hızlı ilerlet (Her mesajda 3 ile 6 dakika atlar)
+        mevcutDakika += Math.floor(Math.random() * 4) + 3;
+
+        // İlk yarı bitişi
+        if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
+            ilkYariBitti = true;
             await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`).catch(() => {});
+            return;
         }
 
+        // Maç bitişi
         if (mevcutDakika >= 90) {
             clearInterval(macInterval);
             const bitisEmbed = new EmbedBuilder()
@@ -112,29 +120,41 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
             return;
         }
 
-        // Her döngüde %40 ihtimalle olay gerçekleşir
-        if (Math.random() < 0.40) {
-            const rastgeleOlay = olaylar[Math.floor(Math.random() * olaylar.length)];
-            const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
-            const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
-
-            if (rastgeleOlay.includes('GOOOOL')) {
-                if (hucumTakim === evSahibi) evSkor++;
-                else depSkor++;
-            }
-
-            const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
-            const anlatim = rastgeleOlay
-                .replace('{dakika}', mevcutDakika)
-                .replace('{hücum}', hucumTakim)
-                .replace('{defans}', defansTakim)
-                .replace('{skor}', guncelSkor);
-
-            await channel.send(anlatim).catch(() => {});
+        // Olay seçimi (Kırmızı kartı nadir yap)
+        let secilenOlay;
+        const sans = Math.random();
+        
+        if (sans < 0.03) { 
+            // %3 ihtimalle Kırmızı Kart
+            secilenOlay = olaylar.find(o => o.tip === "kirmizi");
+        } else if (sans < 0.35) { 
+            // %32 ihtimalle Gol
+            const goller = olaylar.filter(o => o.tip === "gol");
+            secilenOlay = goller[Math.floor(Math.random() * goller.length)];
+        } else { 
+            // Geri kalan %65 ihtimal Normal pozisyonlar
+            const normaller = olaylar.filter(o => o.tip === "normal");
+            secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
         }
 
-        mevcutDakika++;
-    }, 10000); // Test amaçlı canlı maçı hızlandırdım (10 saniyede bir 1 dk ilerler)
+        const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
+        const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
+
+        if (secilenOlay.tip === "gol") {
+            if (hucumTakim === evSahibi) evSkor++;
+            else depSkor++;
+        }
+
+        const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
+        const anlatim = secilenOlay.metin
+            .replace('{dakika}', mevcutDakika > 90 ? 90 : mevcutDakika)
+            .replace('{hücum}', hucumTakim)
+            .replace('{defans}', defansTakim)
+            .replace('{skor}', guncelSkor);
+
+        await channel.send(anlatim).catch(() => {});
+
+    }, 8000); // 8 saniyede bir yeni olay ve hızlı akan zaman
 }
 
 client.on('interactionCreate', async interaction => {
