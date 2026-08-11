@@ -54,15 +54,19 @@ function veriyiKaydet() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-// Sunucudaki ismi güncelleme fonksiyonu (Örn: V.Osimhen | SNT | 68M€)
+// Sunucudaki ismi güncelleme fonksiyonu
 async function isimGuncelle(guild, member, isim, mevki, piyasaDegeri) {
     try {
+        if (guild.ownerId === member.id) {
+            console.log("Sunucu sahibinin ismi bot tarafından değiştirilemez.");
+            return;
+        }
         const yeniNick = `${isim} | ${mevki} | ${piyasaDegeri}M€`;
         if (member.manageable) {
             await member.setNickname(yeniNick);
         }
     } catch (err) {
-        console.error("İsim değiştirilemedi (Yetki yetersiz olabilir):", err.message);
+        console.error("İsim değiştirilemedi (Yetki hiyerarşisi veya yetersiz izin):", err.message);
     }
 }
 
@@ -80,7 +84,14 @@ const commands = [
         .setName('dver')
         .setDescription('Oyuncunun piyasa değerini arttırır (Değer Yetkilisi).')
         .addUserOption(opt => opt.setName('kisi').setDescription('Değer verilecek oyuncu').setRequired(true))
-        .addIntegerOption(opt => opt.setName('mektar').setDescription('Eklenecek değer (M€)').setRequired(true)),
+        .addIntegerOption(opt => opt.setName('miktar').setDescription('Eklenecek değer (M€)').setRequired(true)),
+
+    // /dal
+    new SlashCommandBuilder()
+        .setName('dal')
+        .setDescription('Oyuncunun piyasa değerini düşürür (Değer Yetkilisi).')
+        .addUserOption(opt => opt.setName('kisi').setDescription('Değeri alınacak oyuncu').setRequired(true))
+        .addIntegerOption(opt => opt.setName('miktar').setDescription('Düşürülecek değer (M€)').setRequired(true)),
 
     new SlashCommandBuilder().setName('antrenman').setDescription('Antrenman yaparak piyasa değerini +5M€ arttırır (1 saatte bir).'),
 
@@ -289,7 +300,7 @@ client.on('interactionCreate', async interaction => {
                 id: hedefKullanici.id,
                 name: yeniIsim, 
                 mevki: mevki, 
-                piyasaDegeri: 1, // Başlangıç 1M€
+                piyasaDegeri: 1,
                 gol: 0,
                 sakatlik: false,
                 cezali: false,
@@ -326,7 +337,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             const hedefKullanici = options.getUser('kisi');
-            const eklenecekDeger = options.getInteger('mektar');
+            const eklenecekDeger = options.getInteger('miktar');
             const oyuncu = db.oyuncular[hedefKullanici.id];
 
             if (!oyuncu) {
@@ -347,6 +358,44 @@ client.on('interactionCreate', async interaction => {
                         .setColor('#3498db')
                         .addFields(
                             { name: '➕ Eklenen Değer', value: `${eklenecekDeger}M€`, inline: true },
+                            { name: '💰 Yeni Piyasa Değeri', value: `${oyuncu.piyasaDegeri}M€`, inline: true },
+                            { name: '👮 Yetkili', value: `<@${user.id}>`, inline: true }
+                        )
+                ]
+            });
+        }
+
+        // DEĞER ALMA KOMUTU (/dal)
+        if (commandName === 'dal') {
+            if (DEGER_YETKILI_ROL_ID !== 'BURAYA_DEGER_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(DEGER_YETKILI_ROL_ID)) {
+                return interaction.reply({ 
+                    content: "❌ Bu komutu kullanmak için **Değer Yetkilisi** rolüne sahip olmalısınız!", 
+                    ephemeral: true 
+                });
+            }
+
+            const hedefKullanici = options.getUser('kisi');
+            const dusurulecekDeger = options.getInteger('miktar');
+            const oyuncu = db.oyuncular[hedefKullanici.id];
+
+            if (!oyuncu) {
+                return interaction.reply({ content: '❌ Bu kullanıcı henüz sisteme kayıtlı değil!', ephemeral: true });
+            }
+
+            oyuncu.piyasaDegeri = Math.max(1, (oyuncu.piyasaDegeri || 1) - dusurulecekDeger);
+            veriyiKaydet();
+
+            const hedefMember = await guild.members.fetch(hedefKullanici.id);
+            await isimGuncelle(guild, hedefMember, oyuncu.name, oyuncu.mevki, oyuncu.piyasaDegeri);
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🔻 Değer Düşürüldü')
+                        .setDescription(`**Oyuncu:** <@${hedefKullanici.id}> | ${oyuncu.mevki} | **${oyuncu.piyasaDegeri}M€**`)
+                        .setColor('#e74c3c')
+                        .addFields(
+                            { name: '➖ Düşürülen Değer', value: `${dusurulecekDeger}M€`, inline: true },
                             { name: '💰 Yeni Piyasa Değeri', value: `${oyuncu.piyasaDegeri}M€`, inline: true },
                             { name: '👮 Yetkili', value: `<@${user.id}>`, inline: true }
                         )
