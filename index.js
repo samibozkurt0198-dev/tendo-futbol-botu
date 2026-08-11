@@ -143,7 +143,7 @@ const commands = [
     new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
 
-    new SlashCommandBuilder().setName('takim-listesi').setDescription('Ligdeki veya sistemdeki tüm takımları listeler.'),
+    new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki veya sistemdeki tüm takımları listeler.'),
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Ligdeki güncel puan durumunu gösterir.'),
 
@@ -570,7 +570,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [embed] });
         }
 
-        if (commandName === 'takim-listesi') {
+        if (commandName === 'takimlar') {
             const takimlar = Object.values(db.takimlar);
 
             if (takimlar.length === 0) {
