@@ -11,10 +11,10 @@ const http = require('http');
 const fs = require('fs');
 require('dotenv').config();
 
-// --- AYARLAR ---
-// Lütfen buraya sunucundaki "Kayıt Yetkilisi" rolünün ID'sini yaz:
-const YETKILI_ROL_ID = 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ';
-// ---------------
+// --- ROL VE YETKİ AYARLARI ---
+const KAYIT_YETKILI_ROL_ID = 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ';
+const DEGER_YETKILI_ROL_ID = 'BURAYA_DEGER_YETKILISI_ROL_ID_YAZ';
+// ------------------------------
 
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -30,7 +30,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -53,35 +54,45 @@ function veriyiKaydet() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-// YETKİLİ KAYIT KOMUTU (Futbolcu seçimi kaldırıldı)
-const kayitCommand = new SlashCommandBuilder()
-    .setName('kayit')
-    .setDescription('Bir kullanıcıyı sisteme kaydeder (Sadece Kayıt Yetkilisi).')
-    .addUserOption(opt => 
-        opt.setName('kisi')
-           .setDescription('Kaydedilecek kullanıcıyı seçin')
-           .setRequired(true)
-    )
-    .addStringOption(opt => 
-        opt.setName('isim')
-           .setDescription('Kullanıcıya verilecek oyuncu adı/lakabı')
-           .setRequired(true)
-    );
+// Sunucudaki ismi güncelleme fonksiyonu (Örn: V.Osimhen | SNT | 68M€)
+async function isimGuncelle(guild, member, isim, mevki, piyasaDegeri) {
+    try {
+        const yeniNick = `${isim} | ${mevki} | ${piyasaDegeri}M€`;
+        if (member.manageable) {
+            await member.setNickname(yeniNick);
+        }
+    } catch (err) {
+        console.error("İsim değiştirilemedi (Yetki yetersiz olabilir):", err.message);
+    }
+}
 
 const commands = [
-    kayitCommand,
-    
+    // /kayit
+    new SlashCommandBuilder()
+        .setName('kayit')
+        .setDescription('Kullanıcıyı kaydeder ve ismini düzenler (Kayıt Yetkilisi).')
+        .addUserOption(opt => opt.setName('kisi').setDescription('Kaydedilecek kişi').setRequired(true))
+        .addStringOption(opt => opt.setName('isim').setDescription('Oyuncu adı').setRequired(true))
+        .addStringOption(opt => opt.setName('mevki').setDescription('Mevki (Örn: SNT, KANAT, OS, STP, KL)').setRequired(true)),
+
+    // /dver
+    new SlashCommandBuilder()
+        .setName('dver')
+        .setDescription('Oyuncunun piyasa değerini arttırır (Değer Yetkilisi).')
+        .addUserOption(opt => opt.setName('kisi').setDescription('Değer verilecek oyuncu').setRequired(true))
+        .addIntegerOption(opt => opt.setName('mektar').setDescription('Eklenecek değer (M€)').setRequired(true)),
+
+    new SlashCommandBuilder().setName('antrenman').setDescription('Antrenman yaparak piyasa değerini +5M€ arttırır (1 saatte bir).'),
+
+    new SlashCommandBuilder().setName('kart').setDescription('Oyuncu kartını görüntüler.')
+        .addUserOption(opt => opt.setName('hedef').setDescription('Kartı görüntülenecek oyuncu')),
+
     new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Ligdeki güncel puan durumunu gösterir.'),
 
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('En çok gol atan oyuncuları listeler.'),
-
-    new SlashCommandBuilder().setName('antrenman').setDescription('1 saatte bir antrenman yaparak reytingini geliştirir (Max: 99).'),
-
-    new SlashCommandBuilder().setName('kart').setDescription('Oyuncu kartını görüntüler.')
-        .addUserOption(opt => opt.setName('hedef').setDescription('Kartı görüntülenecek oyuncu')),
 
     new SlashCommandBuilder().setName('transfer').setDescription('Takımınıza bir oyuncuyu transfer edin.')
         .addUserOption(opt => opt.setName('oyuncu').setDescription('Transfer edilecek oyuncu').setRequired(true))
@@ -94,10 +105,7 @@ const commands = [
     new SlashCommandBuilder().setName('profil').setDescription('Oyuncu profilini görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Profili görüntülenecek oyuncu')),
 
-    new SlashCommandBuilder().setName('taktik').setDescription('Takım dizilişini ayarlar.')
-        .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3').setRequired(true)),
-
-    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Oluşturulan takımlar arasında otomatik lig sezonunu başlatır.')
+    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Otomatik lig sezonunu başlatır.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder().setName('mac-oyna').setDescription('Tekil canlı spikerli maç başlatır.')
@@ -261,25 +269,27 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        const { commandName, options, user, channel, member } = interaction;
+        const { commandName, options, user, channel, member, guild } = interaction;
 
+        // KAYIT KOMUTU
         if (commandName === 'kayit') {
-            // YETKİ KONTROLÜ
-            if (YETKILI_ROL_ID !== 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(YETKILI_ROL_ID)) {
+            if (KAYIT_YETKILI_ROL_ID !== 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(KAYIT_YETKILI_ROL_ID)) {
                 return interaction.reply({ 
-                    content: "❌ Bu komutu kullanmak için 'Kayıt Yetkilisi' rolüne sahip olmalısınız!", 
+                    content: "❌ Bu komutu kullanmak için **Kayıt Yetkilisi** rolüne sahip olmalısınız!", 
                     ephemeral: true 
                 });
             }
 
             const hedefKullanici = options.getUser('kisi');
+            const hedefMember = await guild.members.fetch(hedefKullanici.id);
             const yeniIsim = options.getString('isim');
+            const mevki = options.getString('mevki').toUpperCase();
 
             db.oyuncular[hedefKullanici.id] = { 
                 id: hedefKullanici.id,
                 name: yeniIsim, 
-                mevki: 'ST', 
-                overall: 75, 
+                mevki: mevki, 
+                piyasaDegeri: 1, // Başlangıç 1M€
                 gol: 0,
                 sakatlik: false,
                 cezali: false,
@@ -288,38 +298,120 @@ client.on('interactionCreate', async interaction => {
             };
             veriyiKaydet();
 
+            await isimGuncelle(guild, hedefMember, yeniIsim, mevki, 1);
+
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('✅ Oyuncu Kaydı Başarılı!')
-                        .setDescription(`**<@${hedefKullanici.id}>** kullanıcısı **${yeniIsim}** adıyla sisteme eklendi!`)
-                        .setColor('#00ff00')
+                        .setDescription(`**<@${hedefKullanici.id}>** sisteme başarıyla kaydedildi!`)
+                        .setColor('#2ecc71')
                         .addFields(
                             { name: 'Oyuncu Adı', value: yeniIsim, inline: true },
-                            { name: 'Başlangıç Reytingi', value: '75', inline: true },
+                            { name: 'Mevki', value: mevki, inline: true },
+                            { name: 'Piyasa Değeri', value: '1M€', inline: true },
                             { name: 'Kaydeden Yetkili', value: `<@${user.id}>`, inline: true }
                         )
                 ]
             });
         }
 
-        if (commandName === 'kart') {
+        // DEĞER VERME KOMUTU (/dver)
+        if (commandName === 'dver') {
+            if (DEGER_YETKILI_ROL_ID !== 'BURAYA_DEGER_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(DEGER_YETKILI_ROL_ID)) {
+                return interaction.reply({ 
+                    content: "❌ Bu komutu kullanmak için **Değer Yetkilisi** rolüne sahip olmalısınız!", 
+                    ephemeral: true 
+                });
+            }
+
+            const hedefKullanici = options.getUser('kisi');
+            const eklenecekDeger = options.getInteger('mektar');
+            const oyuncu = db.oyuncular[hedefKullanici.id];
+
+            if (!oyuncu) {
+                return interaction.reply({ content: '❌ Bu kullanıcı henüz sisteme kayıtlı değil!', ephemeral: true });
+            }
+
+            oyuncu.piyasaDegeri = (oyuncu.piyasaDegeri || 1) + eklenecekDeger;
+            veriyiKaydet();
+
+            const hedefMember = await guild.members.fetch(hedefKullanici.id);
+            await isimGuncelle(guild, hedefMember, oyuncu.name, oyuncu.mevki, oyuncu.piyasaDegeri);
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('✅ Değer Güncellendi')
+                        .setDescription(`**Oyuncu:** <@${hedefKullanici.id}> | ${oyuncu.mevki} | **${oyuncu.piyasaDegeri}M€**`)
+                        .setColor('#3498db')
+                        .addFields(
+                            { name: '➕ Eklenen Değer', value: `${eklenecekDeger}M€`, inline: true },
+                            { name: '💰 Yeni Piyasa Değeri', value: `${oyuncu.piyasaDegeri}M€`, inline: true },
+                            { name: '👮 Yetkili', value: `<@${user.id}>`, inline: true }
+                        )
+                ]
+            });
+        }
+
+        // ANTRENMAN KOMUTU (+5M€)
+        if (commandName === 'antrenman') {
+            const oyuncu = db.oyuncular[user.id];
+
+            if (!oyuncu) {
+                return interaction.reply({ content: '❌ Kayıtlı bir profiliniz bulunamadı. Lütfen yetkililerden sizi kaydetmesini isteyin.', ephemeral: true });
+            }
+
+            const simdi = Date.now();
+            const birSaat = 60 * 60 * 1000;
+
+            if (simdi - (oyuncu.sonAntrenman || 0) < birSaat) {
+                const kalanMs = birSaat - (simdi - oyuncu.sonAntrenman);
+                const kalanDakika = Math.ceil(kalanMs / (1000 * 60));
+
+                return interaction.reply({ 
+                    content: `⏳ Henüz antrenman yapacak kadar dinlenmediniz! Lütfen **${kalanDakika} dakika** sonra tekrar deneyin.`, 
+                    ephemeral: true 
+                });
+            }
+
+            oyuncu.piyasaDegeri = (oyuncu.piyasaDegeri || 1) + 5;
+            oyuncu.sonAntrenman = simdi;
+            oyuncu.sakatlik = false;
+            oyuncu.cezali = false;
+            veriyiKaydet();
+
+            const hedefMember = await guild.members.fetch(user.id);
+            await isimGuncelle(guild, hedefMember, oyuncu.name, oyuncu.mevki, oyuncu.piyasaDegeri);
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🏋️‍♂️ Antrenman Tamamlandı!')
+                        .setDescription(`**${oyuncu.name}** harika bir antrenman geçirdi! **+5M€ Piyasa Değeri** kazandı.`)
+                        .setColor('#f39c12')
+                        .addFields(
+                            { name: 'Yeni Piyasa Değeri', value: `${oyuncu.piyasaDegeri}M€`, inline: true },
+                            { name: 'Bir Sonraki Antrenman', value: '1 saat sonra', inline: true }
+                        )
+                ]
+            });
+        }
+
+        // KART VE PROFİL
+        if (commandName === 'kart' || commandName === 'profil') {
             const target = options.getUser('hedef') || user;
             const p = db.oyuncular[target.id];
 
             if (!p) return interaction.reply({ content: '❌ Oyuncu profili bulunamadı.', ephemeral: true });
 
-            let kartRengi = '#3498db'; 
-            if (p.overall >= 85) kartRengi = '#f1c40f'; 
-            if (p.overall >= 90) kartRengi = '#9b59b6'; 
-
             const status = p.sakatlik ? '🚑 Sakat' : (p.cezali ? '🟥 Cezalı' : '✅ Aktif');
 
             const embed = new EmbedBuilder()
                 .setTitle(`🎴 OYUNCU KARTI | ${p.name}`)
-                .setColor(kartRengi)
+                .setColor('#f1c40f')
                 .addFields(
-                    { name: '⚡ OVERALL', value: `**${p.overall}**`, inline: true },
+                    { name: '💰 Piyasa Değeri', value: `**${p.piyasaDegeri || 1}M€**`, inline: true },
                     { name: '📍 Mevki', value: `${p.mevki}`, inline: true },
                     { name: '🛡️ Takım', value: `${p.takim}`, inline: true },
                     { name: '⚽ Toplam Gol', value: `${p.gol || 0}`, inline: true },
@@ -422,52 +514,6 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        if (commandName === 'antrenman') {
-            const oyuncu = db.oyuncular[user.id];
-
-            if (!oyuncu) {
-                return interaction.reply({ content: '❌ Kayıtlı bir profiliniz bulunamadı. Lütfen yetkililerden sizi kaydetmesini isteyin.', ephemeral: true });
-            }
-
-            if (oyuncu.overall >= 99) {
-                return interaction.reply({ content: '🌟 Tebrikler! Zaten maksimum reytinge (99) ulaştınız.', ephemeral: true });
-            }
-
-            const simdi = Date.now();
-            const birSaat = 60 * 60 * 1000;
-
-            if (simdi - (oyuncu.sonAntrenman || 0) < birSaat) {
-                const kalanMs = birSaat - (simdi - oyuncu.sonAntrenman);
-                const kalanDakika = Math.ceil(kalanMs / (1000 * 60));
-
-                return interaction.reply({ 
-                    content: `⏳ Henüz antrenman yapacak kadar dinlenmediniz! Lütfen **${kalanDakika} dakika** sonra tekrar deneyin.`, 
-                    ephemeral: true 
-                });
-            }
-
-            const artis = Math.floor(Math.random() * 3) + 1;
-            oyuncu.overall = Math.min(99, oyuncu.overall + artis);
-            oyuncu.sonAntrenman = simdi;
-            
-            oyuncu.sakatlik = false;
-            oyuncu.cezali = false;
-            veriyiKaydet();
-
-            return interaction.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('🏋️‍♂️ Antrenman Tamamlandı!')
-                        .setDescription(`**${oyuncu.name}** antrenmanda harikalar yarattı! **+${artis} Reyting** kazandı.`)
-                        .setColor('#f39c12')
-                        .addFields(
-                            { name: 'Yeni Reyting', value: `${oyuncu.overall}`, inline: true },
-                            { name: 'Bir Sonraki Antrenman', value: '1 saat sonra', inline: true }
-                        )
-                ]
-            });
-        }
-
         if (commandName === 'takim-olustur') {
             const takimIsmi = options.getString('isim');
             const key = takimIsmi.toLowerCase();
@@ -562,31 +608,6 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.reply({ content: `⏳ **${evSahibi} vs ${deplasman}** maçı bu kanalda başlatılıyor...` });
             canliMacOyna(channel, evSahibi, deplasman);
-        }
-
-        if (commandName === 'profil') {
-            const target = options.getUser('hedef') || user;
-            const p = db.oyuncular[target.id];
-
-            if (!p) return interaction.reply({ content: 'Oyuncu profili bulunamadı.', ephemeral: true });
-
-            return interaction.reply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle(`👤 ${p.name} - Profil`)
-                        .setColor('#3498db')
-                        .addFields(
-                            { name: 'Mevki', value: p.mevki, inline: true },
-                            { name: 'Reyting', value: `${p.overall}`, inline: true },
-                            { name: 'Takım', value: `${p.takim}`, inline: true }
-                        )
-                ]
-            });
-        }
-
-        if (commandName === 'taktik') {
-            const dizilis = options.getString('dizilis');
-            return interaction.reply({ content: `✅ Takım dizilişiniz **${dizilis}** olarak güncellendi.` });
         }
 
     } catch (err) {
