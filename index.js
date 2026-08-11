@@ -236,11 +236,11 @@ client.once('ready', async () => {
 const olaylar = [
     { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} takımından **{oyuncu}** harika bir vuruşla fileleri havalandırdı! Skor: {skor}", tip: "gol" },
     { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} yıldızı **{oyuncu}** tribünleri coşturan harika bir gol attı! Skor: {skor}", tip: "gol" },
-    { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} şutunu çekti ama kaleci devleşti.", tip: "normal" },
-    { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** Top az farkla direğin yanından auta çıktı.", tip: "normal" },
-    { metin: "{dakika}' - 📐 **KORNER!** Tehlikeli köşe vuruşu.", tip: "normal" },
-    { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** Sert şut direkten patladı!", tip: "normal" },
-    { metin: "{dakika}' - 🟨 **SARI KART!** Sert müdahale.", tip: "normal" }
+    { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} atağında **{oyuncu}** şutunu çekti ama kaleci devleşti.", tip: "normal" },
+    { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
+    { metin: "{dakika}' - 📐 **KORNER!** {hücum} köşe vuruşu kazandı, tehlikeli orta geliyor.", tip: "normal" },
+    { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, sert şut direkten patladı!", tip: "normal" },
+    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" }
 ];
 
 function rastgeleFutbolcuSec() {
@@ -278,7 +278,7 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
 
         const baslangicEmbed = new EmbedBuilder()
             .setTitle(`🎙️ ÖZEL MAÇ | ${evSahibi} vs ${deplasman}`)
-            .setDescription(`Derbi / Karşılaşma hakemin düdüğüyle başladı!`)
+            .setDescription(`Karşılaşma hakemin düdüğüyle başladı!`)
             .setColor('#e74c3c');
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
@@ -526,7 +526,6 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${secilenTakim.isim}** teknik direktörüsün. Başarılar!`).setColor('#2ecc71')] });
         }
 
-        // YENİ EKlenen MAÇ YAP KOMUTU
         if (commandName === 'mac-yap') {
             const evSahibiTakim = Object.values(db.takimlar).find(t => t.kurucu === user.id);
             if (!evSahibiTakim) return interaction.reply({ content: '❌ Maç yapabilmek için önce bir takımın T.D.si olmalısın!', flags: 64 });
@@ -544,7 +543,7 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: `❌ **${deplasmanTakim.isim}** takımının başında bir Teknik Direktör yok! Sadece T.D. olan takımlarla maç yapabilirsin.`, flags: 64 });
             }
 
-            await interaction.reply({ content: `⚔️ **${evSahibiTakim.isim}** ve **deplasmanTakim.isim** arasındaki özel kapışma başlatılıyor...` });
+            await interaction.reply({ content: `⚔️ **${evSahibiTakim.isim}** ve **${deplasmanTakim.isim}** arasındaki özel kapışma başlatılıyor...` });
             await tekilCanliMacOyna(channel, evSahibiTakim.isim, deplasmanTakim.isim, guild);
             return;
         }
@@ -587,7 +586,7 @@ client.on('interactionCreate', async interaction => {
             const miktarMilyon = options.getInteger('miktar');
             const eklenenPara = miktarMilyon * 1000000;
 
-            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim));
+            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenTakim));
             if (!bulunanKey) return interaction.reply({ content: '❌ Belirtilen isimde takım bulunamadı!', flags: 64 });
 
             const hedefTakim = db.takimlar[bulunanKey];
