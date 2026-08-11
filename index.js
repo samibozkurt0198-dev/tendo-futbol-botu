@@ -29,9 +29,10 @@ const client = new Client({
     ]
 });
 
+// Veritabanı
 const db = {
-    oyuncular: new Map(),
-    takimlar: new Map(),
+    oyuncular: new Map(), // userId -> { name, mevki, overall, sonAntrenman }
+    takimlar: new Map(),  // takimAdi -> { isim, puan, av, o, g, b, m }
     sezonAktif: false
 };
 
@@ -43,16 +44,20 @@ const commands = [
     new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
 
+    new SlashCommandBuilder().setName('puan-durumu').setDescription('Ligdeki güncel puan durumunu gösterir.'),
+
+    new SlashCommandBuilder().setName('antrenman').setDescription('1 saatte bir antrenman yaparak reytingini geliştirir (Max: 99).'),
+
     new SlashCommandBuilder().setName('profil').setDescription('Oyuncu profilini görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Profili görüntülenecek oyuncu')),
 
     new SlashCommandBuilder().setName('taktik').setDescription('Takım dizilişini ayarlar.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3').setRequired(true)),
 
-    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Sezonu başlatır ve kanallara duyuru atar.')
+    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Oluşturulan takımlar arasında otomatik lig sezonunu başlatır.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    new SlashCommandBuilder().setName('mac-oyna').setDescription('Canlı spikerli maç başlatır.')
+    new SlashCommandBuilder().setName('mac-oyna').setDescription('Tekil canlı spikerli maç başlatır.')
         .addStringOption(opt => opt.setName('ev-sahibi').setDescription('Ev Sahibi Takım').setRequired(true))
         .addStringOption(opt => opt.setName('deplasman').setDescription('Deplasman Takımı').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -73,11 +78,6 @@ client.once('ready', async () => {
     }
 });
 
-function findChannelByName(guild, name) {
-    return guild.channels.cache.find(c => c.name.toLowerCase().includes(name.toLowerCase()) && c.isTextBased());
-}
-
-// Olaylar
 const olaylar = [
     { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} takımından **{oyuncu}** harika bir vuruşla fileleri havalandırdı! Skor: {skor}", tip: "gol" },
     { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} oyuncusu **{oyuncu}** ceza sahası dışından 90'a astı! Skor: {skor}", tip: "gol" },
@@ -89,101 +89,122 @@ const olaylar = [
     { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} oyuncusu son adamı düşürdü ve oyundan atıldı!", tip: "kirmizi" }
 ];
 
-async function canliMacOyna(channel, evSahibi, deplasman) {
-    let evSkor = 0;
-    let depSkor = 0;
-    let mevcutDakika = 1;
-    let ilkYariBitti = false;
-
-    // Kayıtlı oyuncu isimlerini al
+function rastgeleGolcu() {
     const oyuncuListesi = Array.from(db.oyuncular.values()).map(o => o.name);
-    
-    function rastgeleGolcu() {
-        if (oyuncuListesi.length > 0) {
-            return oyuncuListesi[Math.floor(Math.random() * oyuncuListesi.length)];
-        }
-        const varsayilanGolcular = ["Ahmet", "Mehmet", "Samet", "Ali", "Alex", "Ronaldo"];
-        return varsayilanGolcular[Math.floor(Math.random() * varsayilanGolcular.length)];
+    if (oyuncuListesi.length > 0) {
+        return oyuncuListesi[Math.floor(Math.random() * oyuncuListesi.length)];
     }
+    const varsayilan = ["Ahmet", "Mehmet", "Samet", "Ali", "Alex", "Ronaldo"];
+    return varsayilan[Math.floor(Math.random() * varsayilan.length)];
+}
 
-    const baslangicEmbed = new EmbedBuilder()
-        .setTitle(`🎙️ CANLI SPİKER | ${evSahibi} vs ${deplasman}`)
-        .setDescription(`Maç başladı! Keyifli seyirler.`)
-        .setColor('#e74c3c')
-        .setTimestamp();
+function canliMacOyna(channel, evSahibi, deplasman) {
+    return new Promise(async (resolve) => {
+        let evSkor = 0;
+        let depSkor = 0;
+        let mevcutDakika = 1;
+        let ilkYariBitti = false;
 
-    await channel.send({ embeds: [baslangicEmbed] });
+        const baslangicEmbed = new EmbedBuilder()
+            .setTitle(`🎙️ CANLI SPİKER | ${evSahibi} vs ${deplasman}`)
+            .setDescription(`Maç başladı! Keyifli seyirler.`)
+            .setColor('#e74c3c')
+            .setTimestamp();
 
-    const macInterval = setInterval(async () => {
-        mevcutDakika += Math.floor(Math.random() * 4) + 3;
+        await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
 
-        // İlk Yarı
-        if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
-            ilkYariBitti = true;
-            await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`).catch(() => {});
-            return;
-        }
+        const macInterval = setInterval(async () => {
+            mevcutDakika += Math.floor(Math.random() * 4) + 3;
 
-        // Maç Bitiş
-        if (mevcutDakika >= 90) {
-            clearInterval(macInterval);
-            const bitisEmbed = new EmbedBuilder()
-                .setTitle(`🏁 MAÇ BİTTİ! | ${evSahibi} vs ${deplasman}`)
-                .setDescription(`**MAÇ SONUCU:** **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`)
-                .setColor('#2ecc71')
-                .setTimestamp();
+            if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
+                ilkYariBitti = true;
+                await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`).catch(() => {});
+                return;
+            }
 
-            await channel.send({ embeds: [bitisEmbed] }).catch(() => {});
-            return;
-        }
+            if (mevcutDakika >= 90) {
+                clearInterval(macInterval);
+                const bitisEmbed = new EmbedBuilder()
+                    .setTitle(`🏁 MAÇ BİTTİ! | ${evSahibi} vs ${deplasman}`)
+                    .setDescription(`**MAÇ SONUCU:** **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`)
+                    .setColor('#2ecc71')
+                    .setTimestamp();
 
-        let secilenOlay;
-        const sans = Math.random();
-        
-        // DENGELENMİŞ İHTİMALLER: Gol %15, Kırmızı %2, Pozisyon %83
-        if (sans < 0.02) { 
-            secilenOlay = olaylar.find(o => o.tip === "kirmizi");
-        } else if (sans < 0.17) { 
-            const goller = olaylar.filter(o => o.tip === "gol");
-            secilenOlay = goller[Math.floor(Math.random() * goller.length)];
-        } else { 
-            const normaller = olaylar.filter(o => o.tip === "normal");
-            secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
-        }
+                await channel.send({ embeds: [bitisEmbed] }).catch(() => {});
+                istatistikGuncelle(evSahibi, deplasman, evSkor, depSkor);
+                resolve();
+                return;
+            }
 
-        const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
-        const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
+            let secilenOlay;
+            const sans = Math.random();
+            
+            if (sans < 0.02) { 
+                secilenOlay = olaylar.find(o => o.tip === "kirmizi");
+            } else if (sans < 0.17) { 
+                const goller = olaylar.filter(o => o.tip === "gol");
+                secilenOlay = goller[Math.floor(Math.random() * goller.length)];
+            } else { 
+                const normaller = olaylar.filter(o => o.tip === "normal");
+                secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
+            }
 
-        if (secilenOlay.tip === "gol") {
-            if (hucumTakim === evSahibi) evSkor++;
-            else depSkor++;
-        }
+            const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
+            const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
 
-        const golcu = rastgeleGolcu();
-        const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
-        const anlatim = secilenOlay.metin
-            .replace('{dakika}', mevcutDakika > 90 ? 90 : mevcutDakika)
-            .replace('{hücum}', hucumTakim)
-            .replace('{defans}', defansTakim)
-            .replace('{oyuncu}', golcu)
-            .replace('{skor}', guncelSkor);
+            if (secilenOlay.tip === "gol") {
+                if (hucumTakim === evSahibi) evSkor++;
+                else depSkor++;
+            }
 
-        await channel.send(anlatim).catch(() => {});
+            const golcu = rastgeleGolcu();
+            const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
+            const anlatim = secilenOlay.metin
+                .replace('{dakika}', mevcutDakika > 90 ? 90 : mevcutDakika)
+                .replace('{hücum}', hucumTakim)
+                .replace('{defans}', defansTakim)
+                .replace('{oyuncu}', golcu)
+                .replace('{skor}', guncelSkor);
 
-    }, 8000);
+            await channel.send(anlatim).catch(() => {});
+
+        }, 6000);
+    });
+}
+
+function istatistikGuncelle(ev, dep, evSkor, depSkor) {
+    let tEv = db.takimlar.get(ev.toLowerCase());
+    let tDep = db.takimlar.get(dep.toLowerCase());
+
+    if (!tEv || !tDep) return;
+
+    tEv.o++; tDep.o++;
+    tEv.av += (evSkor - depSkor);
+    tDep.av += (depSkor - evSkor);
+
+    if (evSkor > depSkor) {
+        tEv.puan += 3; tEv.g++;
+        tDep.m++;
+    } else if (depSkor > evSkor) {
+        tDep.puan += 3; tDep.g++;
+        tEv.m++;
+    } else {
+        tEv.puan += 1; tEv.b++;
+        tDep.puan += 1; tDep.b++;
+    }
 }
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        const { commandName, options, guild, user, channel } = interaction;
+        const { commandName, options, user, channel } = interaction;
 
         if (commandName === 'kayit') {
             const isim = options.getString('isim');
             const mevki = options.getString('mevki');
 
-            db.oyuncular.set(user.id, { name: isim, mevki, overall: 65 });
+            db.oyuncular.set(user.id, { name: isim, mevki, overall: 65, sonAntrenman: 0 });
 
             return interaction.reply({
                 embeds: [
@@ -199,23 +220,136 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        if (commandName === 'antrenman') {
+            const oyuncu = db.oyuncular.get(user.id);
+
+            if (!oyuncu) {
+                return interaction.reply({ content: '❌ Önce `/kayit` komutu ile profilinizi oluşturmalısınız.', ephemeral: true });
+            }
+
+            if (oyuncu.overall >= 99) {
+                return interaction.reply({ content: '🌟 Tebrikler! Zaten maksimum reytinge (99) ulaştınız.', ephemeral: true });
+            }
+
+            const simdi = Date.now();
+            const birSaat = 60 * 60 * 1000; // milisaniye cinsinden 1 saat
+
+            if (simdi - oyuncu.sonAntrenman < birSaat) {
+                const kalanDakika = Math.ceil((birSaat - (simdi - oyuncu.sonAntrenman)) / (1000 * 60));
+                return interaction.reply({ 
+                    content: `⏳ Henüz antrenman yapacak kadar dinlenmediniz! Lütfen **${kalanDakika} dakika** sonra tekrar deneyin.`, 
+                    ephemeral: true 
+                });
+            }
+
+            // Reytinge rastgele 1 ile 3 arası puan ekle
+            const artis = Math.floor(Math.random() * 3) + 1;
+            oyuncu.overall = Math.min(99, oyuncu.overall + artis);
+            oyuncu.sonAntrenman = simdi;
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🏋️‍♂️ Antrenman Tamamlandı!')
+                        .setDescription(`Ağır antrenmanlar meyvesini verdi! **+${artis} Reyting** kazandınız.`)
+                        .setColor('#f39c12')
+                        .addFields(
+                            { name: 'Yeni Reyting', value: `${oyuncu.overall}`, inline: true },
+                            { name: 'Bir Sonraki Antrenman', value: '1 saat sonra', inline: true }
+                        )
+                ]
+            });
+        }
+
         if (commandName === 'takim-olustur') {
             const takimIsmi = options.getString('isim');
+            const key = takimIsmi.toLowerCase();
             
-            if (db.takimlar.has(takimIsmi.toLowerCase())) {
+            if (db.takimlar.has(key)) {
                 return interaction.reply({ content: '❌ Bu isimde bir takım zaten var!', ephemeral: true });
             }
 
-            db.takimlar.set(takimIsmi.toLowerCase(), { isim: takimIsmi, kurucu: user.id, oyuncular: [] });
+            db.takimlar.set(key, { 
+                isim: takimIsmi, 
+                kurucu: user.id, 
+                puan: 0, 
+                av: 0, 
+                o: 0, 
+                g: 0, 
+                b: 0, 
+                m: 0 
+            });
 
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('🛡️ Takım Oluşturuldu!')
-                        .setDescription(`**${takimIsmi}** takımı başarıyla kuruldu! Kurucu: <@${user.id}>`)
+                        .setDescription(`**${takimIsmi}** takımı lig sistemine başarıyla eklendi! Kurucu: <@${user.id}>`)
                         .setColor('#f1c40f')
                 ]
             });
+        }
+
+        if (commandName === 'puan-durumu') {
+            if (db.takimlar.size === 0) {
+                return interaction.reply({ content: 'Henüz kayıtlı bir takım yok. `/takim-olustur` ile takım ekleyin!', ephemeral: true });
+            }
+
+            const sirali = Array.from(db.takimlar.values())
+                .sort((a, b) => b.puan - a.puan || b.av - a.av);
+
+            let liste = "";
+            sirali.forEach((t, i) => {
+                liste += `**${i + 1}. ${t.isim}** | O: ${t.o} | G: ${t.g} | B: ${t.b} | M: ${t.m} | AV: ${t.av} | **Puan: ${t.puan}**\n`;
+            });
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🏆 TENDO LEAGUE - PUAN DURUMU')
+                        .setDescription(liste)
+                        .setColor('#3498db')
+                ]
+            });
+        }
+
+        if (commandName === 'sezon-baslat') {
+            const takimListesi = Array.from(db.takimlar.values());
+
+            if (takimListesi.length < 2) {
+                return interaction.reply({ content: '❌ Sezonu başlatmak için en az **2 takım** oluşturulmuş olmalıdır! `/takim-olustur` komutunu kullanın.', ephemeral: true });
+            }
+
+            db.sezonAktif = true;
+            await interaction.reply({ content: `🚀 **TENDO LEAGUE SEZONU BAŞLIYOR!** Toplam ${takimListesi.length} takım mücadele edecek.` });
+
+            for (let i = 0; i < takimListesi.length; i++) {
+                for (let j = i + 1; j < takimListesi.length; j++) {
+                    const ev = takimListesi[i].isim;
+                    const dep = takimListesi[j].isim;
+
+                    await channel.send(`📢 **SIRADAKİ MAÇ:** **${ev} vs ${dep}** başlamak üzere!`);
+                    await canliMacOyna(channel, ev, dep);
+                    await new Promise(r => setTimeout(r, 5000));
+                }
+            }
+
+            await channel.send({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🎉 SEZON BİTTİ!')
+                        .setDescription('Tüm maçlar tamamlandı! Puan durumunu görmek için `/puan-durumu` yazabilirsiniz.')
+                        .setColor('#2ecc71')
+                ]
+            });
+        }
+
+        if (commandName === 'mac-oyna') {
+            const evSahibi = options.getString('ev-sahibi');
+            const deplasman = options.getString('deplasman');
+
+            await interaction.reply({ content: `⏳ **${evSahibi} vs ${deplasman}** maçı bu kanalda başlatılıyor...` });
+            canliMacOyna(channel, evSahibi, deplasman);
         }
 
         if (commandName === 'profil') {
@@ -242,29 +376,8 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: `✅ Takım dizilişiniz **${dizilis}** olarak güncellendi.` });
         }
 
-        if (commandName === 'sezon-baslat') {
-            db.sezonAktif = true;
-
-            const duyuruKanal = findChannelByName(guild, 'duyuru');
-            if (duyuruKanal) {
-                await duyuruKanal.send({ embeds: [new EmbedBuilder().setTitle('📢 YENİ SEZON BAŞLADI!').setDescription('Tendo League yeni sezonu açılmıştır!').setColor('#ff0000')] }).catch(() => {});
-            }
-
-            return interaction.reply({ content: '✅ Sezon başarıyla başlatıldı!' });
-        }
-
-        if (commandName === 'mac-oyna') {
-            const evSahibi = options.getString('ev-sahibi');
-            const deplasman = options.getString('deplasman');
-
-            await interaction.reply({ content: `⏳ **${evSahibi} vs ${deplasman}** maçı bu kanalda başlatılıyor...` });
-            canliMacOyna(channel, evSahibi, deplasman);
-        }
     } catch (err) {
         console.error('Komut hatası:', err);
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: 'Bir hata oluştu, lütfen tekrar deneyin.', ephemeral: true }).catch(() => {});
-        }
     }
 });
 
