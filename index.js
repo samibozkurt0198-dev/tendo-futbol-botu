@@ -75,7 +75,7 @@ function otomatikTakimlariYukle() {
         if (!db.takimlar[key]) {
             db.takimlar[key] = {
                 isim: takimIsmi,
-                kurucu: "Sistem",
+                kurucu: null, // Teknik direktör ID'si (Başlangıçta boş)
                 puan: 0,
                 av: 0,
                 o: 0,
@@ -140,10 +140,13 @@ const commands = [
     new SlashCommandBuilder().setName('kart').setDescription('Oyuncu kartını görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Kartı görüntülenecek oyuncu')),
 
-    new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
+    new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir özel takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
 
-    new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki veya sistemdeki tüm takımları listeler.'),
+    new SlashCommandBuilder().setName('takim-sec').setDescription('Boştaki bir takımın Teknik Direktörü (T.D.) olursunuz.')
+        .addStringOption(opt => opt.setName('takim-adi').setDescription('Seçmek istediğiniz takımın adı').setRequired(true)),
+
+    new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları, bütçelerini ve T.D. durumlarını listeler.'),
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Ligdeki güncel puan durumunu gösterir.'),
 
@@ -185,6 +188,34 @@ client.once('ready', async () => {
     } catch (error) {
         console.error('Komut yükleme hatası:', error);
     }
+
+    // --- TAKIM LİSTESİNİ OTOMATİK KANALA GÖNDERME ---
+    setTimeout(async () => {
+        try {
+            const hedefKanal = client.channels.cache.find(c => c.name && c.name.includes('takim-listesi'));
+            if (hedefKanal) {
+                const takimlar = Object.values(db.takimlar);
+                if (takimlar.length > 0) {
+                    let liste = "";
+                    takimlar.forEach((t, i) => {
+                        const tdBilgi = t.kurucu && t.kurucu !== "Sistem" ? `<@${t.kurucu}>` : "Boşta (T.D. Arıyor)";
+                        liste += `**${i + 1}. ${t.isim}** | T.D: ${tdBilgi} | Bütçe: €${(t.butce || 0).toLocaleString()}\n`;
+                    });
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🛡️ TENDO LEAGUE - GÜNCEL TAKIM LİSTESİ & T.D.')
+                        .setDescription(liste)
+                        .setColor('#3498db')
+                        .setTimestamp();
+
+                    await hedefKanal.send({ embeds: [embed] });
+                    console.log('Takım listesi otomatik kanala gönderildi.');
+                }
+            }
+        } catch (err) {
+            console.error('Otomatik kanal mesajı hatası:', err);
+        }
+    }, 4000);
 });
 
 const olaylar = [
@@ -314,7 +345,7 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
         tEv.butce += 50000;
     } else if (depSkor > evSkor) {
         tDep.puan += 3; tDep.g++; tEv.m++;
-        tDep.butce += 50000;
+        tEv.butce += 50000;
     } else {
         tEv.puan += 1; tEv.b++;
         tDep.puan += 1; tDep.b++;
@@ -579,15 +610,54 @@ client.on('interactionCreate', async interaction => {
 
             let liste = "";
             takimlar.forEach((t, i) => {
-                liste += `**${i + 1}. ${t.isim}** | Bütçe: €${(t.butce || 0).toLocaleString()} | Puan: ${t.puan || 0}\n`;
+                const tdBilgi = t.kurucu && t.kurucu !== "Sistem" ? `<@${t.kurucu}>` : "Boşta (T.D. Yok)";
+                liste += `**${i + 1}. ${t.isim}** | T.D: ${tdBilgi} | Bütçe: €${(t.butce || 0).toLocaleString()} | Puan: ${t.puan || 0}\n`;
             });
 
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle('🛡️ SİSTEMDEKİ TAKIMLAR')
+                        .setTitle('🛡️ SİSTEMDEKİ TAKIMLAR VE T.D. DURUMLARI')
                         .setDescription(liste)
                         .setColor('#3498db')
+                ]
+            });
+        }
+
+        if (commandName === 'takim-sec') {
+            const girilenIsim = options.getString('takim-adi').trim().toLowerCase();
+            
+            // Zaten başka bir takımın T.D. si mi kontrol et
+            const ztnBaskasi = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            if (ztnBaskasi) {
+                return interaction.reply({ content: `❌ Zaten **${ztnBaskasi.isim}** takımının Teknik Direktörüsün! Başka bir takım seçemezsin.`, ephemeral: true });
+            }
+
+            const bulunanTakimKey = Object.keys(db.takimlar).find(k => k === girilenIsim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim));
+            
+            if (!bulunanTakimKey) {
+                return interaction.reply({ content: `❌ **"${options.getString('takim-adi')}"** adında bir takım bulunamadı! `/takimlar` yazarak tam isimlerine bakabilirsin.`, ephemeral: true });
+            }
+
+            const secilenTakim = db.takimlar[bulunanTakimKey];
+
+            if (secilenTakim.kurucu && secilenTakim.kurucu !== "Sistem") {
+                return interaction.reply({ content: `❌ Bu takımın halihazırda bir Teknik Direktörü var (<@${secilenTagim.kurucu}>)! Başka bir boş takım seçmelisin.`, ephemeral: true });
+            }
+
+            secilenTakim.kurucu = user.id;
+            veriyiKaydet();
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('👔 TEKNİK DİREKTÖRLÜK GÖREVİ BAŞLADI!')
+                        .setDescription(`Tebrikler! Artık **${secilenTakim.isim}** takımının resmi **Teknik Direktörü** sensin.`)
+                        .setColor('#2ecc71')
+                        .addFields(
+                            { name: 'Kulüp Bütçesi', value: `€${secilenTakim.butce.toLocaleString()}`, inline: true },
+                            { name: 'Teknik Direktör', value: `<@${user.id}>`, inline: true }
+                        )
                 ]
             });
         }
@@ -635,10 +705,10 @@ client.on('interactionCreate', async interaction => {
 
             const oyuncuData = db.oyuncular[hedefOyuncu.id];
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Transfer yapabilmek için takım sahibi olmalısınız!', ephemeral: true });
+            if (!kulup) return interaction.reply({ content: '❌ Transfer yapabilmek için `/takim-sec` veya `/takim-olustur` ile bir takımın başına geçmelisiniz!', ephemeral: true });
 
             if (kulup.butce < bonservis) {
-                return interaction.reply({ content: `❌ Bütçeniz yetersiz! Kasanızda **€${kulup.butce.toLocaleString()}** var.`, ephemeral: true });
+                return interaction.reply({ content: `❌ Kulüp bütçeniz yetersiz! Kasanızda **€${kulup.butce.toLocaleString()}** var.`, ephemeral: true });
             }
 
             kulup.butce -= bonservis;
@@ -649,7 +719,7 @@ client.on('interactionCreate', async interaction => {
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('🤝 TRANSFER GERÇEKLEŞTİ!')
-                        .setDescription(`**${oyuncuData.name}**, **€${bonservis.toLocaleString()}** karşılığında **${kulup.isim}** takımına transfer oldu!`)
+                        .setDescription(`**${oyuncuData.name}**, **€${bonservis.toLocaleString()}** bonservis bedeliyle **${kulup.isim}** takımına transfer oldu!`)
                         .setColor('#2ecc71')
                 ]
             });
@@ -657,7 +727,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'sponsor') {
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Sadece takım sahipleri sponsor anlaşması yapabilir!', ephemeral: true });
+            if (!kulup) return interaction.reply({ content: '❌ Sadece takım teknik direktörleri sponsor anlaşması yapabilir!', ephemeral: true });
 
             const simdi = Date.now();
             const ucSaat = 3 * 60 * 60 * 1000;
@@ -676,7 +746,7 @@ client.on('interactionCreate', async interaction => {
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('💼 SPONSORLUK ANLAŞMASI!')
-                        .setDescription(`**${kulup.isim}**, yeni sponsorluk sözleşmesinden **€${gelir.toLocaleString()}** gelir elde etti!`)
+                        .setDescription(`**${kulup.isim}** teknik direktörlük yönetimi, yeni sponsorluk sözleşmesinden **€${gelir.toLocaleString()}** gelir elde etti!`)
                         .setColor('#f1c40f')
                 ]
             });
@@ -684,12 +754,12 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'butce') {
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Herhangi bir takımın kurucusu değilsiniz.', ephemeral: true });
+            if (!kulup) return interaction.reply({ content: '❌ Herhangi bir takımın teknik direktörü değilsiniz.', ephemeral: true });
 
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle(`💰 ${kulup.isim} - Bütçe Durumu`)
+                        .setTitle(`💰 ${kulup.isim} - Kulüp Bütçesi`)
                         .setDescription(`Mevcut Kasa Bakiyesi: **€${kulup.butce.toLocaleString()}**`)
                         .setColor('#2ecc71')
                 ]
@@ -700,6 +770,11 @@ client.on('interactionCreate', async interaction => {
             const takimIsmi = options.getString('isim');
             const key = takimIsmi.toLowerCase();
             
+            const ztnBaskasi = Object.values(db.takimlar).find(t => t.kurucu === user.id);
+            if (ztnBaskasi) {
+                return interaction.reply({ content: `❌ Zaten **${ztnBaskasi.isim}** takımının teknik direktörüsün!`, ephemeral: true });
+            }
+
             if (db.takimlar[key]) {
                 return interaction.reply({ content: '❌ Bu isimde bir takım zaten var!', ephemeral: true });
             }
@@ -721,8 +796,8 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle('🛡️ Takım Oluşturuldu!')
-                        .setDescription(`**${takimIsmi}** takımı eklendi! Başlangıç Bütçesi: **€100.000**`)
+                        .setTitle('🛡️ Takım Oluşturuldu ve T.D. Olundu!')
+                        .setDescription(`**${takimIsmi}** takımı kuruldu ve teknik direktörlüğüne getirildiniz! Başlangıç Bütçesi: **€100.000**`)
                         .setColor('#f1c40f')
                 ]
             });
@@ -732,7 +807,7 @@ client.on('interactionCreate', async interaction => {
             const takimlar = Object.values(db.takimlar);
 
             if (takimlar.length === 0) {
-                return interaction.reply({ content: '❌ Henüz kayıtlı bir takım yok. `/takim-olustur` ile takım ekleyin!', ephemeral: true });
+                return interaction.reply({ content: '❌ Henüz kayıtlı bir takım yok.', ephemeral: true });
             }
 
             const sirali = takimlar.sort((a, b) => b.puan - a.puan || b.av - a.av);
@@ -756,7 +831,7 @@ client.on('interactionCreate', async interaction => {
             const takimListesi = Object.values(db.takimlar);
 
             if (takimListesi.length < 2) {
-                return interaction.reply({ content: '❌ Sezonu başlatmak için en az **2 takım** oluşturulmuş olmalıdır!', ephemeral: true });
+                return interaction.reply({ content: '❌ Sezonu başlatmak için en az **2 takım** olmalıdır!', ephemeral: true });
             }
 
             db.sezonAktif = true;
@@ -778,7 +853,7 @@ client.on('interactionCreate', async interaction => {
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('🎉 SEZON BİTTİ!')
-                        .setDescription('Tüm maçlar tamamlandı! Puan durumunu görmek için `/puan-durumu`, gol krallığı için `/gol-kralligi` yazabilirsiniz.')
+                        .setDescription('Tüm maçlar tamamlandı! Puan durumunu görmek için `/puan-durumu` yazabilirsiniz.')
                         .setColor('#2ecc71')
                 ]
             });
