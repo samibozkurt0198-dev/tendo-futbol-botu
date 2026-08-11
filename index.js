@@ -48,10 +48,47 @@ function veriyiKaydet() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+// Seçilebilir Hazır Futbolcu Listesi
+const FUTBOLCU_LISTESI = [
+    { name: 'Victor Osimhen', mevki: 'ST', overall: 87 },
+    { name: 'Mauro Icardi', mevki: 'ST', overall: 83 },
+    { name: 'Lionel Messi', mevki: 'RW', overall: 88 },
+    { name: 'Cristiano Ronaldo', mevki: 'ST', overall: 86 },
+    { name: 'Kylian Mbappé', mevki: 'ST', overall: 91 },
+    { name: 'Erling Haaland', mevki: 'ST', overall: 91 },
+    { name: 'Jude Bellingham', mevki: 'CAM', overall: 90 },
+    { name: 'Vinicius Jr.', mevki: 'LW', overall: 89 },
+    { name: 'Kevin De Bruyne', mevki: 'CM', overall: 90 },
+    { name: 'Mohamed Salah', mevki: 'RW', overall: 89 },
+    { name: 'Harry Kane', mevki: 'ST', overall: 90 },
+    { name: 'Robert Lewandowski', mevki: 'ST', overall: 88 },
+    { name: 'Luka Modric', mevki: 'CM', overall: 85 },
+    { name: 'Virgil van Dijk', mevki: 'CB', overall: 89 },
+    { name: 'Thibaut Courtois', mevki: 'GK', overall: 89 },
+    { name: 'Edin Dzeko', mevki: 'ST', overall: 81 },
+    { name: 'Dusan Tadic', mevki: 'LW', overall: 81 },
+    { name: 'Rafa Silva', mevki: 'CAM', overall: 83 },
+    { name: 'Ciro Immobile', mevki: 'ST', overall: 81 },
+    { name: 'Barış Alper Yılmaz', mevki: 'RW', overall: 78 }
+];
+
+const kayitCommand = new SlashCommandBuilder()
+    .setName('kayit')
+    .setDescription('Hazır futbolcu havuzundan bir oyuncu seçerek profil oluşturur.')
+    .addStringOption(opt => {
+        opt.setName('futbolcu')
+           .setDescription('Almak istediğiniz futbolcuyu seçin')
+           .setRequired(true);
+        
+        // Listeyi seçim menüsüne aktar
+        FUTBOLCU_LISTESI.forEach(f => {
+            opt.addChoices({ name: `${f.name} (${f.mevki} - ${f.overall})`, value: f.name });
+        });
+        return opt;
+    });
+
 const commands = [
-    new SlashCommandBuilder().setName('kayit').setDescription('Oyuncu profili oluşturur.')
-        .addStringOption(opt => opt.setName('isim').setDescription('Oyuncu Adı Soyadı').setRequired(true))
-        .addStringOption(opt => opt.setName('mevki').setDescription('Mevki (ST, CAM, CB, GK vb.)').setRequired(true)),
+    kayitCommand,
     
     new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
@@ -120,7 +157,7 @@ function rastgeleOyuncuSec() {
     if (tumu.length > 0) {
         return tumu[Math.floor(Math.random() * tumu.length)];
     }
-    return { name: "Samet", id: null };
+    return { name: "Osimhen", id: null };
 }
 
 function canliMacOyna(channel, evSahibi, deplasman) {
@@ -246,13 +283,24 @@ client.on('interactionCreate', async interaction => {
         const { commandName, options, user, channel } = interaction;
 
         if (commandName === 'kayit') {
-            const isim = options.getString('isim');
-            const mevki = options.getString('mevki');
+            const secilenIsim = options.getString('futbolcu');
+
+            // Futbolcu daha önce başka biri tarafından seçilmiş mi kontrol et
+            const alinmisMi = Object.values(db.oyuncular).some(o => o.name === secilenIsim);
+            if (alinmisMi) {
+                return interaction.reply({ 
+                    content: `❌ **${secilenIsim}** daha önce başka bir oyuncu tarafından seçildi! Lütfen başka bir futbolcu seçin.`, 
+                    ephemeral: true 
+                });
+            }
+
+            const futbolcuVerisi = FUTBOLCU_LISTESI.find(f => f.name === secilenIsim);
 
             db.oyuncular[user.id] = { 
-                name: isim, 
-                mevki: mevki.toUpperCase(), 
-                overall: 65, 
+                id: user.id,
+                name: futbolcuVerisi.name, 
+                mevki: futbolcuVerisi.mevki, 
+                overall: futbolcuVerisi.overall, 
                 gol: 0,
                 sakatlik: false,
                 cezali: false,
@@ -264,12 +312,13 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [
                     new EmbedBuilder()
-                        .setTitle('⚽ Oyuncu Kaydı Başarılı!')
+                        .setTitle('⚽ Futbolcu Seçimi Başarılı!')
+                        .setDescription(`Artık sahalarda **${futbolcuVerisi.name}** olarak mücadele edeceksiniz!`)
                         .setColor('#00ff00')
                         .addFields(
-                            { name: 'İsim', value: isim, inline: true },
-                            { name: 'Mevki', value: mevki.toUpperCase(), inline: true },
-                            { name: 'Reyting', value: '65', inline: true }
+                            { name: 'Futbolcu', value: futbolcuVerisi.name, inline: true },
+                            { name: 'Mevki', value: futbolcuVerisi.mevki, inline: true },
+                            { name: 'Başlangıç Reytingi', value: `${futbolcuVerisi.overall}`, inline: true }
                         )
                 ]
             });
@@ -282,8 +331,8 @@ client.on('interactionCreate', async interaction => {
             if (!p) return interaction.reply({ content: '❌ Oyuncu profili bulunamadı.', ephemeral: true });
 
             let kartRengi = '#3498db'; 
-            if (p.overall >= 80) kartRengi = '#f1c40f'; // Altın
-            if (p.overall >= 90) kartRengi = '#9b59b6'; // Efsane
+            if (p.overall >= 85) kartRengi = '#f1c40f'; 
+            if (p.overall >= 90) kartRengi = '#9b59b6'; 
 
             const status = p.sakatlik ? '🚑 Sakat' : (p.cezali ? '🟥 Cezalı' : '✅ Aktif');
 
@@ -398,7 +447,7 @@ client.on('interactionCreate', async interaction => {
             const oyuncu = db.oyuncular[user.id];
 
             if (!oyuncu) {
-                return interaction.reply({ content: '❌ Önce `/kayit` komutu ile profilinizi oluşturmalısınız.', ephemeral: true });
+                return interaction.reply({ content: '❌ Önce `/kayit` komutu ile bir futbolcu seçmelisiniz.', ephemeral: true });
             }
 
             if (oyuncu.overall >= 99) {
@@ -422,7 +471,6 @@ client.on('interactionCreate', async interaction => {
             oyuncu.overall = Math.min(99, oyuncu.overall + artis);
             oyuncu.sonAntrenman = simdi;
             
-            // Antrenman yapınca sakatlık ve ceza biter
             oyuncu.sakatlik = false;
             oyuncu.cezali = false;
             veriyiKaydet();
@@ -431,7 +479,7 @@ client.on('interactionCreate', async interaction => {
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('🏋️‍♂️ Antrenman Tamamlandı!')
-                        .setDescription(`Ağır antrenmanlar meyvesini verdi! **+${artis} Reyting** kazandınız.\n*(Varsa sakatlığınız/cezanız iyileşti)*`)
+                        .setDescription(`**${oyuncu.name}** antrenmanda harikalar yarattı! **+${artis} Reyting** kazandı.`)
                         .setColor('#f39c12')
                         .addFields(
                             { name: 'Yeni Reyting', value: `${oyuncu.overall}`, inline: true },
@@ -568,3 +616,4 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
