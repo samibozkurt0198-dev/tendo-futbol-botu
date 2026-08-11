@@ -38,7 +38,8 @@ let db = {
     oyuncular: {},
     takimlar: {},
     transferPazari: {},
-    sezonAktif: false
+    sezonAktif: false,
+    transferKanalId: null
 };
 
 if (fs.existsSync(DB_FILE)) {
@@ -48,6 +49,7 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.takimlar) db.takimlar = dosyaVerisi.takimlar;
         if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
+        if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
     }
@@ -191,6 +193,12 @@ const commands = [
         .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis bedeli (Milyon € cinsinden)').setRequired(true))
         .addIntegerOption(opt => opt.setName('haftalik-maas').setDescription('Haftalık maaş (€)').setRequired(true)),
 
+    new SlashCommandBuilder()
+        .setName('transfermarkt-kanal-ayarla')
+        .setDescription('Transfer duyurularının yapılacağı transfermarkt kanalını ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Transfermarkt metin kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları ve bütçeleri listeler.'),
     new SlashCommandBuilder().setName('takim-sec').setDescription('Bir takımın Teknik Direktörü olursunuz.')
         .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı').setRequired(true)),
@@ -272,7 +280,6 @@ function rastgeleFutbolcuSec() {
 }
 
 let golKanalId = null;
-let aktifMacInterval = null;
 
 async function golSesiCal(guild) {
     if (!golKanalId) return;
@@ -286,6 +293,30 @@ async function golSesiCal(guild) {
         });
         setTimeout(() => { try { connection.destroy(); } catch(e){} }, 4000);
     } catch(e) {}
+}
+
+async function transferDuyurusuGonder(guild, takimIsmi, oyuncuAdi, bonservisMilyon, maas) {
+    if (!db.transferKanalId) return;
+    try {
+        const kanal = await guild.channels.fetch(db.transferKanalId).catch(() => null);
+        if (!kanal || kanal.type !== ChannelType.GuildText) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle('🔥 TRANSFERMARKT | YENİ TRANSFER!')
+            .setDescription(`📈 **${takimIsmi}**, yıldız futbolcu **{oyuncuAdi}** ile anlaşmaya varıldığını duyurdu!`.replace('{oyuncuAdi}', oyuncuAdi))
+            .addFields(
+                { name: '⚽ Futbolcu', value: oyuncuAdi, inline: true },
+                { name: '🏛️ Yeni Takımı', value: takimIsmi, inline: true },
+                { name: '💰 Bonservis', value: `${bonservisMilyon}M €`, inline: true },
+                { name: '💶 Haftalık Maaş', value: `€${maas.toLocaleString()}`, inline: true }
+            )
+            .setColor('#e67e22')
+            .setTimestamp();
+
+        await kanal.send({ embeds: [embed] }).catch(() => {});
+    } catch (e) {
+        console.error("Transfer duyuru hatası:", e);
+    }
 }
 
 function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
@@ -468,6 +499,13 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
+        if (commandName === 'transfermarkt-kanal-ayarla') {
+            const kanal = options.getChannel('kanal');
+            db.transferKanalId = kanal.id;
+            veriyiKaydet();
+            return interaction.reply({ content: `✅ Transfermarkt duyuru kanalı başarıyla <#${kanal.id}> olarak ayarlandı!`, flags: 64 });
+        }
+
         if (commandName === 'transfer-teklif') {
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
             if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın!', flags: 64 });
@@ -526,10 +564,13 @@ client.on('interactionCreate', async interaction => {
             hedefFutbolcu.maas = haftalikMaas;
             veriyiKaydet();
 
+            // Transfermarkt kanalına otomatik mesaj gönder
+            await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
+
             return interaction.reply({ 
                 embeds: [new EmbedBuilder()
                     .setTitle('🤝 TRANSFER BAŞARILI!')
-                    .setDescription(`**${hedefFutbolcu.name}**, **${kulup.isim}** takımına katıldı!`)
+                    .setDescription(`**${hedefFutbolcu.name}**, **${kulup.isim}** takımına katıldı! Transfermarkt kanalında duyuruldu.`)
                     .setColor('#2ecc71')
                 ] 
             });
@@ -694,7 +735,6 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'sezon-durdur') {
             db.sezonAktif = false;
             veriyiKaydet();
-            if (aktifMacInterval) clearInterval(aktifMacInterval);
             return interaction.reply({ content: '🛑 Sezon durduruldu.', flags: 64 });
         }
 
