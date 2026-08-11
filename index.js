@@ -10,7 +10,7 @@ const {
 const http = require('http');
 require('dotenv').config();
 
-// Web sunucusu (Render için)
+// Render için port sunucusu
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Tendo Bot 7/24 Aktif!');
@@ -39,12 +39,19 @@ const commands = [
     new SlashCommandBuilder().setName('kayit').setDescription('Oyuncu profili oluşturur.')
         .addStringOption(opt => opt.setName('isim').setDescription('Oyuncu Adı Soyadı').setRequired(true))
         .addStringOption(opt => opt.setName('mevki').setDescription('Mevki (ST, CAM, CB, GK vb.)').setRequired(true)),
+    
+    new SlashCommandBuilder().setName('takim-olustur').setDescription('Yeni bir takım oluşturur.')
+        .addStringOption(opt => opt.setName('isim').setDescription('Takım Adı').setRequired(true)),
+
     new SlashCommandBuilder().setName('profil').setDescription('Oyuncu profilini görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Profili görüntülenecek oyuncu')),
+
     new SlashCommandBuilder().setName('taktik').setDescription('Takım dizilişini ayarlar.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3').setRequired(true)),
+
     new SlashCommandBuilder().setName('sezon-baslat').setDescription('Sezonu başlatır ve kanallara duyuru atar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder().setName('mac-oyna').setDescription('Canlı spikerli maç başlatır.')
         .addStringOption(opt => opt.setName('ev-sahibi').setDescription('Ev Sahibi Takım').setRequired(true))
         .addStringOption(opt => opt.setName('deplasman').setDescription('Deplasman Takımı').setRequired(true))
@@ -70,16 +77,16 @@ function findChannelByName(guild, name) {
     return guild.channels.cache.find(c => c.name.toLowerCase().includes(name.toLowerCase()) && c.isTextBased());
 }
 
-// Olaylar ve Ağırlıkları (Kırmızı kart ihtimali düşürüldü, pozisyonlar artırıldı)
+// Olaylar
 const olaylar = [
-    { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} harika bir organizasyonla golü buluyor! Skor: {skor}", tip: "gol" },
-    { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} ceza sahası dışından jeneriklik bir gol attı! Skor: {skor}", tip: "gol" },
-    { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} net pozisyondan yararlanamadı, kaleci devleşti.", tip: "normal" },
+    { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} takımından **{oyuncu}** harika bir vuruşla fileleri havalandırdı! Skor: {skor}", tip: "gol" },
+    { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} oyuncusu **{oyuncu}** ceza sahası dışından 90'a astı! Skor: {skor}", tip: "gol" },
+    { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} şutunu çekti ama kaleci devleşti.", tip: "normal" },
     { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** Top az farkla direğin yanından avuta çıktı.", tip: "normal" },
     { metin: "{dakika}' - 📐 **KORNER!** Tehlikeli bir köşe vuruşu organizasyonu.", tip: "normal" },
     { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** Sert şut direkte patladı!", tip: "normal" },
-    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} orta alanda rakibini indirdi.", tip: "normal" },
-    { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} çok sert müdahale sonrası oyundan atıldı!", tip: "kirmizi" }
+    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} oyuncusu orta alanda rakibini indirdi.", tip: "normal" },
+    { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} oyuncusu son adamı düşürdü ve oyundan atıldı!", tip: "kirmizi" }
 ];
 
 async function canliMacOyna(channel, evSahibi, deplasman) {
@@ -87,6 +94,17 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
     let depSkor = 0;
     let mevcutDakika = 1;
     let ilkYariBitti = false;
+
+    // Kayıtlı oyuncu isimlerini al
+    const oyuncuListesi = Array.from(db.oyuncular.values()).map(o => o.name);
+    
+    function rastgeleGolcu() {
+        if (oyuncuListesi.length > 0) {
+            return oyuncuListesi[Math.floor(Math.random() * oyuncuListesi.length)];
+        }
+        const varsayilanGolcular = ["Ahmet", "Mehmet", "Samet", "Ali", "Alex", "Ronaldo"];
+        return varsayilanGolcular[Math.floor(Math.random() * varsayilanGolcular.length)];
+    }
 
     const baslangicEmbed = new EmbedBuilder()
         .setTitle(`🎙️ CANLI SPİKER | ${evSahibi} vs ${deplasman}`)
@@ -97,17 +115,16 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
     await channel.send({ embeds: [baslangicEmbed] });
 
     const macInterval = setInterval(async () => {
-        // Zamanı daha hızlı ilerlet (Her mesajda 3 ile 6 dakika atlar)
         mevcutDakika += Math.floor(Math.random() * 4) + 3;
 
-        // İlk yarı bitişi
+        // İlk Yarı
         if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
             ilkYariBitti = true;
             await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`).catch(() => {});
             return;
         }
 
-        // Maç bitişi
+        // Maç Bitiş
         if (mevcutDakika >= 90) {
             clearInterval(macInterval);
             const bitisEmbed = new EmbedBuilder()
@@ -120,19 +137,16 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
             return;
         }
 
-        // Olay seçimi (Kırmızı kartı nadir yap)
         let secilenOlay;
         const sans = Math.random();
         
-        if (sans < 0.03) { 
-            // %3 ihtimalle Kırmızı Kart
+        // DENGELENMİŞ İHTİMALLER: Gol %15, Kırmızı %2, Pozisyon %83
+        if (sans < 0.02) { 
             secilenOlay = olaylar.find(o => o.tip === "kirmizi");
-        } else if (sans < 0.35) { 
-            // %32 ihtimalle Gol
+        } else if (sans < 0.17) { 
             const goller = olaylar.filter(o => o.tip === "gol");
             secilenOlay = goller[Math.floor(Math.random() * goller.length)];
         } else { 
-            // Geri kalan %65 ihtimal Normal pozisyonlar
             const normaller = olaylar.filter(o => o.tip === "normal");
             secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
         }
@@ -145,16 +159,18 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
             else depSkor++;
         }
 
+        const golcu = rastgeleGolcu();
         const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
         const anlatim = secilenOlay.metin
             .replace('{dakika}', mevcutDakika > 90 ? 90 : mevcutDakika)
             .replace('{hücum}', hucumTakim)
             .replace('{defans}', defansTakim)
+            .replace('{oyuncu}', golcu)
             .replace('{skor}', guncelSkor);
 
         await channel.send(anlatim).catch(() => {});
 
-    }, 8000); // 8 saniyede bir yeni olay ve hızlı akan zaman
+    }, 8000);
 }
 
 client.on('interactionCreate', async interaction => {
@@ -179,6 +195,25 @@ client.on('interactionCreate', async interaction => {
                             { name: 'Mevki', value: mevki, inline: true },
                             { name: 'Reyting', value: '65', inline: true }
                         )
+                ]
+            });
+        }
+
+        if (commandName === 'takim-olustur') {
+            const takimIsmi = options.getString('isim');
+            
+            if (db.takimlar.has(takimIsmi.toLowerCase())) {
+                return interaction.reply({ content: '❌ Bu isimde bir takım zaten var!', ephemeral: true });
+            }
+
+            db.takimlar.set(takimIsmi.toLowerCase(), { isim: takimIsmi, kurucu: user.id, oyuncular: [] });
+
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('🛡️ Takım Oluşturuldu!')
+                        .setDescription(`**${takimIsmi}** takımı başarıyla kuruldu! Kurucu: <@${user.id}>`)
+                        .setColor('#f1c40f')
                 ]
             });
         }
