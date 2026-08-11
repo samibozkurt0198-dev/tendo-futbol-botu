@@ -160,7 +160,7 @@ const commands = [
         .addUserOption(opt => opt.setName('oyuncu').setDescription('Transfer edilecek oyuncu').setRequired(true))
         .addIntegerOption(opt => opt.setName('bonservis').setDescription('Ödenecek bonservis bedeli (€)').setRequired(true)),
 
-    // --- YENİ TRANSFER PAZARI KOMUTLARI ---
+    // --- TRANSFER PAZARI ---
     new SlashCommandBuilder().setName('transfer-pazari').setDescription('Satıştaki futbolcuları listeler.'),
     
     new SlashCommandBuilder().setName('satisa-koy').setDescription('Futbolcunuzu transfer pazarına çıkarırsınız.')
@@ -169,13 +169,13 @@ const commands = [
     new SlashCommandBuilder().setName('pazardan-al').setDescription('Transfer pazarındaki bir oyuncuyu satın alırsınız.')
         .addUserOption(opt => opt.setName('oyuncu').setDescription('Satın alınacak oyuncu').setRequired(true)),
 
-    // --- YENİ SAĞLIK VE TEDAVİ KOMUTU ---
+    // --- SAĞLIK MERKEZİ ---
     new SlashCommandBuilder().setName('saglik-merkezi').setDescription('Sakat veya cezalı oyuncunuzun tedavisini hızlandırır / iyileştirir.'),
 
-    // --- YENİ GÖREV KOMUTU ---
+    // --- GÖREV SİSTEMİ ---
     new SlashCommandBuilder().setName('gorev').setDescription('Kulübünüze özel günlük/sezonluk görevi görüntüler ve ödül alır.'),
 
-    // --- YENİ SES KANALI GOL EFEKTİ AYARI ---
+    // --- SES KANALI GOL EFEKTİ AYARI ---
     new SlashCommandBuilder().setName('gol-sesi-kanal').setDescription('Botun gol anında bağlanıp ses çalacağı ses kanalını ayarlar.')
         .addChannelOption(opt => opt.setName('kanal').setDescription('Ses Kanalı').addChannelTypes(ChannelType.GuildVoice).setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
@@ -253,7 +253,6 @@ function rastgeleOyuncuSec() {
 let golKanalId = null;
 let aktifMacInterval = null;
 
-// Ses kanalında gol efekti çalma fonksiyonu
 async function golSesiCal(guild) {
     if (!golKanalId) return;
     try {
@@ -266,7 +265,6 @@ async function golSesiCal(guild) {
             adapterCreator: guild.voiceAdapterCreator,
         });
 
-        // Küçük bir ses efekti simülasyonu / bekleme ve çıkış
         setTimeout(() => {
             try { connection.destroy(); } catch(e){}
         }, 4000);
@@ -282,7 +280,6 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
         let mevcutDakika = 1;
         let ilkYariBitti = false;
 
-        // Derbi / Özel Atmosfer Kontrolü
         const derbiMi = (evSahibi === "Galatasaray" && deplasman === "Fenerbahçe") || 
                         (evSahibi === "Real Madrid" && deplasman === "Barcelona") ||
                         (evSahibi === "Beşiktaş" && deplasman === "Galatasaray");
@@ -290,7 +287,7 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
         const baslangicEmbed = new EmbedBuilder()
             .setTitle(derbiMi ? `🔥 DEV DERBİ BAŞLADI! | ${evSahibi} vs ${deplasman}` : `🎙️ CANLI SPİKER | ${evSahibi} vs ${deplasman}`)
             .setDescription(derbiMi ? `Stadyum tamamen dolu, nefesler tutuldu! Dev derbi başladı!` : `Maç başladı! Keyifli seyirler.`)
-            .setColor(derbyMi ? '#ff0000' : '#e74c3c')
+            .setColor(derbiMi ? '#ff0000' : '#e74c3c')
             .setTimestamp();
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
@@ -354,13 +351,12 @@ function canliMacOyna(channel, evSahibi, deplasman, guild) {
                     db.oyuncular[secilenOyuncu.id].gol = (db.oyuncular[secilenOyuncu.id].gol || 0) + 1;
                     veriyiKaydet();
                 }
-                // Gol olunca ses kanalında efekte bağlan
                 if (guild) golSesiCal(guild);
             } else if (secilenOlay.tip === "sakatlik" && secilenOyuncu.id && db.oyuncular[secilenOyuncu.id]) {
-                db.oyuncular[secilenOyuncu.id].sakatlik = 3; // 3 maç sakatlık süresi
+                db.oyuncular[secilenOyuncu.id].sakatlik = 3;
                 veriyiKaydet();
             } else if (secilenOlay.tip === "kirmizi" && secilenOyuncu.id && db.oyuncular[secilenOyuncu.id]) {
-                db.oyuncular[secilenOyuncu.id].cezali = 2; // 2 maç ceza süresi
+                db.oyuncular[secilenOyuncu.id].cezali = 2;
                 veriyiKaydet();
             }
 
@@ -390,7 +386,6 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
     tEv.av += (evSkor - depSkor);
     tDep.av += (depSkor - evSkor);
 
-    // Sakatlık / Cezalı maç sayaçlarını azalt
     Object.values(db.oyuncular).forEach(oyuncu => {
         if (oyuncu.sakatlik > 0) oyuncu.sakatlik--;
         if (oyuncu.cezali > 0) oyuncu.cezali--;
@@ -561,13 +556,13 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER!').setDescription(`${od.name}, ${kulup.isim} takımına transfer oldu.`).setColor('#2ecc71')] });
         }
 
-        // --- TRANSFER PAZARI SİSTEMİ ---
+        // --- TRANSFER PAZARI ---
         if (commandName === 'satisa-koy') {
             if (!db.oyuncular[user.id]) return interaction.reply({ content: '❌ Kayıtlı oyuncu kartın bulunmuyor.', ephemeral: true });
             const fiyat = options.getInteger('fiyat');
             db.transferPazari[user.id] = { fiyat, isim: db.oyuncular[user.id].name };
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(' MARKET | Satışa Çıkarıldı').setDescription(`**${db.oyuncular[user.id].name}** isimli oyuncun €${fiyat.toLocaleString()} bedelle transfer pazarına eklendi!`).setColor('#f39c12')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛒 MARKET | Satışa Çıkarıldı').setDescription(`**${db.oyuncular[user.id].name}** isimli oyuncun €${fiyat.toLocaleString()} bedelle transfer pazarına eklendi!`).setColor('#f39c12')] });
         }
 
         if (commandName === 'transfer-pazari') {
@@ -597,7 +592,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 PAZARDAN TRANSFER BAŞARILI!').setDescription(`${pazarVerisi.isim}, €${pazarVerisi.fiyat.toLocaleString()} karşılığında ${kulup.isim} takımına transfer oldu!`).setColor('#2ecc71')] });
         }
 
-        // --- SAĞLIK MERKEZİ (TEDAVİ) ---
+        // --- SAĞLIK MERKEZİ ---
         if (commandName === 'saglik-merkezi') {
             const kulup = Object.values(db.takimlar).find(t => t.kurucu === user.id);
             if (!kulup) return interaction.reply({ content: '❌ Sağlık merkezini kullanmak için T.D. olmalısın.', ephemeral: true });
@@ -635,7 +630,7 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'gol-sesi-kanal') {
             const kanal = options.getChannel('kanal');
             golKanalId = kanal.id;
-            return interaction.reply({ content: `✅ Gol ses kanalı başarıyla <#${kanal.id}> olarak ayarlandı. Gol olunca bot bu kanala katılacak.` });
+            return interaction.reply({ content: `✅ Gol ses kanalı başarıyla <#${kanal.id}> olarak ayarlandı.` });
         }
 
         if (commandName === 'sponsor') {
@@ -647,9 +642,9 @@ client.on('interactionCreate', async interaction => {
             const gelir = Math.floor(Math.random() * 50000) + 50000;
             kulup.butce += gelir;
             kulup.sonSponsor = simdi;
-            if (kulup.gorev) kulup.gorevTamamlandi = true; // Görev tamamlandı
+            if (kulup.gorev) kulup.gorevTamamlandi = true;
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR GELİRİ!').setDescription(`Kutlarım! Kasaya €${gelir.toLocaleString()} eklendi. (Varsa göreviniz tamamlandı!)`).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR GELİRİ!').setDescription(`Kutlarım! Kasaya €${gelir.toLocaleString()} eklendi.`).setColor('#f1c40f')] });
         }
 
         if (commandName === 'butce') {
@@ -708,7 +703,6 @@ client.on('interactionCreate', async interaction => {
                 db.sezonAktif = false;
                 veriyiKaydet();
 
-                // --- OTOMATİK SEZON SONU ÖDÜL & ANALİZİ ---
                 const siraliTakimlar = Object.values(db.takimlar).sort((a, b) => b.puan - a.puan || b.av - a.av);
                 const sampiyon = siraliTakimlar[0];
 
