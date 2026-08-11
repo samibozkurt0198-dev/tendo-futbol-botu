@@ -7,7 +7,19 @@ const {
     EmbedBuilder, 
     PermissionFlagsBits 
 } = require('discord.js');
+const http = require('http');
 require('dotenv').config();
+
+// Render'ın kapanmaması için sahte web sunucusu (Port dinleyici)
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Tendo Bot 7/24 Aktif!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Web sunucusu ${PORT} portunda başlatıldı.`);
+});
 
 const client = new Client({
     intents: [
@@ -85,10 +97,10 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
 
     const macInterval = setInterval(async () => {
         if (mevcutDakika === 45) {
-            await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`);
+            await channel.send(`⏸️ **İLK YARI BİTTİ!** | Skor: **${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`).catch(() => {});
         }
 
-        if (mevcutDakika === 90) {
+        if (mevcutDakika >= 90) {
             clearInterval(macInterval);
             const bitisEmbed = new EmbedBuilder()
                 .setTitle(`🏁 MAÇ BİTTİ! | ${evSahibi} vs ${deplasman}`)
@@ -96,11 +108,12 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
                 .setColor('#2ecc71')
                 .setTimestamp();
 
-            await channel.send({ embeds: [bitisEmbed] });
+            await channel.send({ embeds: [bitisEmbed] }).catch(() => {});
             return;
         }
 
-        if (Math.random() < 0.35) {
+        // Her döngüde %40 ihtimalle olay gerçekleşir
+        if (Math.random() < 0.40) {
             const rastgeleOlay = olaylar[Math.floor(Math.random() * olaylar.length)];
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
@@ -121,7 +134,7 @@ async function canliMacOyna(channel, evSahibi, deplasman) {
         }
 
         mevcutDakika++;
-    }, 20000); // 20 saniyede bir 1 dk ilerler
+    }, 10000); // Test amaçlı canlı maçı hızlandırdım (10 saniyede bir 1 dk ilerler)
 }
 
 client.on('interactionCreate', async interaction => {
