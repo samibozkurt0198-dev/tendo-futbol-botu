@@ -222,7 +222,6 @@ function otomatikTakimlariVeFutbolculariYukle() {
     veriyiKaydet();
 }
 
-// KESİN ÇÖZÜM: ID Eşleşme Kontrolü
 function kullanicininTakiminiBul(userId) {
     const temizId = String(userId).trim();
     return Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
@@ -241,6 +240,15 @@ const commands = [
         .setName('futbolcu-havuzu')
         .setDescription('Transfer edilebilir güncel futbolcuları listeler.')
         .addIntegerOption(opt => opt.setName('sayfa').setDescription('Sayfa numarası')),
+
+    new SlashCommandBuilder()
+        .setName('oto-ilk11')
+        .setDescription('İstediğin dizilişe göre otomatik ilk 11 kurar ve onayına sunar.')
+        .addStringOption(opt => 
+            opt.setName('dizilis')
+               .setDescription('Örn: 4-3-3, 4-4-2, 3-5-2')
+               .setRequired(true)
+        ),
 
     new SlashCommandBuilder()
         .setName('transfer-teklif')
@@ -537,6 +545,78 @@ client.on('interactionCreate', async interaction => {
                     .setDescription(liste)
                     .setColor('#3498db')
                 ] 
+            });
+        }
+
+        // OTO İLK 11 KOMUTU
+        if (commandName === 'oto-ilk11') {
+            const kulup = kullanicininTakiminiBul(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Bir takımın T.D.si olmalısın!', flags: 64 });
+
+            const dizilisStr = options.getString('dizilis'); // Örn: 4-3-3
+            const parcalar = dizilisStr.split('-').map(Number);
+            if (parcalar.length !== 3) {
+                return interaction.reply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3` veya `4-4-2`', flags: 64 });
+            }
+
+            const defSayisi = parcalar[0];
+            const osSayisi = parcalar[1];
+            const sntSayisi = parcalar[2];
+
+            if (defSayisi + osSayisi + sntSayisi !== 9) {
+                return interaction.reply({ content: '❌ Dizilişteki oyuncu sayıları toplamı kaleci hariç 9 olmalıdır (Örn: 4-3-2, 4-4-2).', flags: 64 });
+            }
+
+            const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
+            
+            const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+            const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+            const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+            const sntListesi = serbestler.filter(o => o.mevki === 'SNT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+
+            if (klListesi.length < 1 || dfListesi.length < defSayisi || osListesi.length < osSayisi || sntListesi.length < sntSayisi) {
+                return interaction.reply({ content: '❌ Transfer havuzunda bu dizilişi karşılayacak yeterli serbest oyuncu bulunmuyor!', flags: 64 });
+            }
+
+            const secilenler = [];
+            let toplamBonservis = 0;
+
+            const secKaleci = klListesi[0];
+            secilenler.push(secKaleci);
+            toplamBonservis += secKaleci.piyasaDegeri * 1000000;
+
+            for (let i = 0; i < defSayisi; i++) {
+                secilenler.push(dfListesi[i]);
+                toplamBonservis += dfListesi[i].piyasaDegeri * 1000000;
+            }
+            for (let i = 0; i < osSayisi; i++) {
+                secilenler.push(osListesi[i]);
+                toplamBonservis += osListesi[i].piyasaDegeri * 1000000;
+            }
+            for (let i = 0; i < sntSayisi; i++) {
+                secilenler.push(sntListesi[i]);
+                toplamBonservis += sntListesi[i].piyasaDegeri * 1000000;
+            }
+
+            if (kulup.butce < toplamBonservis) {
+                return interaction.reply({ content: `❌ Bu ilk 11'in toplam maliyeti **${(toplamBonservis/1000000).toFixed(1)}M€**, fakat kulüp kasanızda **${(kulup.butce/1000000).toFixed(1)}M€** var!`, flags: 64 });
+            }
+
+            // Otomatik Kadroya Ekle ve Bütçeden Düş
+            kulup.butce -= toplamBonservis;
+            let listeAciklama = "";
+            secilenler.forEach((oyuncu, index) => {
+                oyuncu.takim = kulup.isim;
+                listeAciklama += `**${index + 1}. ${oyuncu.name}** (${oyuncu.mevki}) - ${oyuncu.piyasaDegeri}M€\n`;
+            });
+            veriyiKaydet();
+
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setTitle(`⚡ OTOMATİK İLK 11 KURULDU (${dizilisStr})`)
+                    .setDescription(`**${kulup.isim}** takımı için en ideal 11 başarıyla oluşturuldu ve kasadan **${(toplamBonservis/1000000).toFixed(1)}M€** düşüldü!\n\n${listeAciklama}`)
+                    .setColor('#2ecc71')
+                ]
             });
         }
 
