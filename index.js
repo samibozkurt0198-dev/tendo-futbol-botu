@@ -8,6 +8,7 @@ const {
     PermissionFlagsBits 
 } = require('discord.js');
 const http = require('http');
+const fs = require('fs');
 require('dotenv').config();
 
 // Render için port sunucusu
@@ -29,12 +30,25 @@ const client = new Client({
     ]
 });
 
-// Veritabanı
-const db = {
-    oyuncular: new Map(), // userId -> { name, mevki, overall, sonAntrenman }
-    takimlar: new Map(),  // takimAdi -> { isim, puan, av, o, g, b, m }
+// Kalıcı Veri Dosyası Kontrolü (Sıfırlanmayı önler)
+const DB_FILE = './database.json';
+let db = {
+    oyuncular: {},
+    takimlar: {},
     sezonAktif: false
 };
+
+if (fs.existsSync(DB_FILE)) {
+    try {
+        db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    } catch (e) {
+        console.error("Veritabanı okuma hatası:", e);
+    }
+}
+
+function veriyiKaydet() {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
 
 const commands = [
     new SlashCommandBuilder().setName('kayit').setDescription('Oyuncu profili oluşturur.')
@@ -90,7 +104,7 @@ const olaylar = [
 ];
 
 function rastgeleGolcu() {
-    const oyuncuListesi = Array.from(db.oyuncular.values()).map(o => o.name);
+    const oyuncuListesi = Object.values(db.oyuncular).map(o => o.name);
     if (oyuncuListesi.length > 0) {
         return oyuncuListesi[Math.floor(Math.random() * oyuncuListesi.length)];
     }
@@ -173,8 +187,11 @@ function canliMacOyna(channel, evSahibi, deplasman) {
 }
 
 function istatistikGuncelle(ev, dep, evSkor, depSkor) {
-    let tEv = db.takimlar.get(ev.toLowerCase());
-    let tDep = db.takimlar.get(dep.toLowerCase());
+    let keyEv = ev.toLowerCase();
+    let keyDep = dep.toLowerCase();
+    
+    let tEv = db.takimlar[keyEv];
+    let tDep = db.takimlar[keyDep];
 
     if (!tEv || !tDep) return;
 
@@ -192,6 +209,8 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
         tEv.puan += 1; tEv.b++;
         tDep.puan += 1; tDep.b++;
     }
+
+    veriyiKaydet();
 }
 
 client.on('interactionCreate', async interaction => {
@@ -204,7 +223,8 @@ client.on('interactionCreate', async interaction => {
             const isim = options.getString('isim');
             const mevki = options.getString('mevki');
 
-            db.oyuncular.set(user.id, { name: isim, mevki, overall: 65, sonAntrenman: 0 });
+            db.oyuncular[user.id] = { name: isim, mevki, overall: 65, sonAntrenman: 0 };
+            veriyiKaydet();
 
             return interaction.reply({
                 embeds: [
@@ -221,7 +241,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'antrenman') {
-            const oyuncu = db.oyuncular.get(user.id);
+            const oyuncu = db.oyuncular[user.id];
 
             if (!oyuncu) {
                 return interaction.reply({ content: '❌ Önce `/kayit` komutu ile profilinizi oluşturmalısınız.', ephemeral: true });
@@ -232,20 +252,22 @@ client.on('interactionCreate', async interaction => {
             }
 
             const simdi = Date.now();
-            const birSaat = 60 * 60 * 1000; // milisaniye cinsinden 1 saat
+            const birSaat = 60 * 60 * 1000;
 
-            if (simdi - oyuncu.sonAntrenman < birSaat) {
-                const kalanDakika = Math.ceil((birSaat - (simdi - oyuncu.sonAntrenman)) / (1000 * 60));
+            if (simdi - (oyuncu.sonAntrenman || 0) < birSaat) {
+                const kalanMs = birSaat - (simdi - oyuncu.sonAntrenman);
+                const kalanDakika = Math.ceil(kalanMs / (1000 * 60));
+
                 return interaction.reply({ 
                     content: `⏳ Henüz antrenman yapacak kadar dinlenmediniz! Lütfen **${kalanDakika} dakika** sonra tekrar deneyin.`, 
                     ephemeral: true 
                 });
             }
 
-            // Reytinge rastgele 1 ile 3 arası puan ekle
             const artis = Math.floor(Math.random() * 3) + 1;
             oyuncu.overall = Math.min(99, oyuncu.overall + artis);
             oyuncu.sonAntrenman = simdi;
+            veriyiKaydet();
 
             return interaction.reply({
                 embeds: [
@@ -265,11 +287,11 @@ client.on('interactionCreate', async interaction => {
             const takimIsmi = options.getString('isim');
             const key = takimIsmi.toLowerCase();
             
-            if (db.takimlar.has(key)) {
+            if (db.takimlar[key]) {
                 return interaction.reply({ content: '❌ Bu isimde bir takım zaten var!', ephemeral: true });
             }
 
-            db.takimlar.set(key, { 
+            db.takimlar[key] = { 
                 isim: takimIsmi, 
                 kurucu: user.id, 
                 puan: 0, 
@@ -278,7 +300,8 @@ client.on('interactionCreate', async interaction => {
                 g: 0, 
                 b: 0, 
                 m: 0 
-            });
+            };
+            veriyiKaydet();
 
             return interaction.reply({
                 embeds: [
@@ -291,12 +314,13 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'puan-durumu') {
-            if (db.takimlar.size === 0) {
+            const takimlar = Object.values(db.takimlar);
+
+            if (takimlar.length === 0) {
                 return interaction.reply({ content: 'Henüz kayıtlı bir takım yok. `/takim-olustur` ile takım ekleyin!', ephemeral: true });
             }
 
-            const sirali = Array.from(db.takimlar.values())
-                .sort((a, b) => b.puan - a.puan || b.av - a.av);
+            const sirali = takimlar.sort((a, b) => b.puan - a.puan || b.av - a.av);
 
             let liste = "";
             sirali.forEach((t, i) => {
@@ -314,13 +338,14 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'sezon-baslat') {
-            const takimListesi = Array.from(db.takimlar.values());
+            const takimListesi = Object.values(db.takimlar);
 
             if (takimListesi.length < 2) {
                 return interaction.reply({ content: '❌ Sezonu başlatmak için en az **2 takım** oluşturulmuş olmalıdır! `/takim-olustur` komutunu kullanın.', ephemeral: true });
             }
 
             db.sezonAktif = true;
+            veriyiKaydet();
             await interaction.reply({ content: `🚀 **TENDO LEAGUE SEZONU BAŞLIYOR!** Toplam ${takimListesi.length} takım mücadele edecek.` });
 
             for (let i = 0; i < takimListesi.length; i++) {
@@ -354,7 +379,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'profil') {
             const target = options.getUser('hedef') || user;
-            const p = db.oyuncular.get(target.id);
+            const p = db.oyuncular[target.id];
 
             if (!p) return interaction.reply({ content: 'Oyuncu profili bulunamadı.', ephemeral: true });
 
