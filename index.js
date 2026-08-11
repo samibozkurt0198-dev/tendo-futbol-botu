@@ -94,7 +94,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Victor Osimhen", mevki: "SNT", deger: 90 },
     { isim: "Khvicha Kvaratskhelia", mevki: "KANAT", deger: 85 },
     { isim: "Alexis Mac Allister", mevki: "OS", deger: 75 },
-    { isim: "William Saliba", mevki: "STP", deger: 85 },
     { isim: "Antonio Rüdiger", mevki: "STP", deger: 60 },
     { isim: "Virgil van Dijk", mevki: "STP", deger: 55 },
     { isim: "Bruno Fernandes", mevki: "OS", deger: 70 },
@@ -109,7 +108,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Alessandro Bastoni", mevki: "STP", deger: 75 },
     { isim: "Ederson", mevki: "KL", deger: 65 },
     { isim: "Mike Maignan", mevki: "KL", deger: 70 },
-    // Geniş havuz için ek yıldızlar ve yetenekler
     { isim: "Arda Güler", mevki: "OS", deger: 45 },
     { isim: "Kenan Yıldız", mevki: "KANAT", deger: 40 },
     { isim: "Barış Alper Yılmaz", mevki: "KANAT", deger: 25 },
@@ -145,19 +143,18 @@ function otomatikTakimlariVeFutbolculariYukle() {
                 g: 0,
                 b: 0,
                 m: 0,
-                butce: 150000000, // 150 Milyon Euro Başlangıç Bütçesi
+                butce: 150000000,
                 sonSponsor: 0
             };
             takimEklendi++;
         }
     });
 
-    // Eğer oyuncu havuzu boşsa veya eksikse güncel liste ile dolduralım
     if (!db.oyuncular || Object.keys(db.oyuncular).length < 20) {
         db.oyuncular = {};
-        GUNCEL_FUTBOLCULARforEach = GUNCEL_FUTBOLCULAR.forEach((f, index) => {
+        GUNCEL_FUTBOLCULAR.forEach((f, index) => {
             const id = `oyuncu_${index + 1}`;
-            const maas = Math.floor(f.deger * 25000); // Değerine göre haftalık maaş
+            const maas = Math.floor(f.deger * 25000);
             db.oyuncular[id] = {
                 id: id,
                 name: f.isim,
@@ -184,13 +181,14 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('futbolcu-havuzu')
-        .setDescription('Transfer edilebilir güncel 2026 futbolcularını listeler.'),
+        .setDescription('Transfer edilebilir güncel 2026 futbolcularını listeler.')
+        .addIntegerOption(opt => opt.setName('sayfa').setDescription('Görmek istediğin sayfa numarası')),
 
     new SlashCommandBuilder()
         .setName('transfer-teklif')
         .setDescription('Futbolcuya bonservis ve maaş teklif ederek transfer edersiniz.')
         .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Futbolcunun adı').setRequired(true))
-        .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis bedeli (Milyon € cinsinden, örn: 50)').setRequired(true))
+        .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis bedeli (Milyon € cinsinden)').setRequired(true))
         .addIntegerOption(opt => opt.setName('haftalik-maas').setDescription('Haftalık maaş (€)').setRequired(true)),
 
     new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları ve bütçeleri listeler.'),
@@ -401,15 +399,31 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'futbolcu-havuzu') {
-            const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest').slice(0, 20);
-            if (serbestler.length === 0) return interaction.reply({ content: '❌ Havuzda boşta futbolcu kalmadı.', flags: 64 });
+            const sayfa = options.getInteger('sayfa') || 1;
+            const oyuncular = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
+            const limit = 20;
+            const maxSayfa = Math.ceil(oyuncular.length / limit) || 1;
+            
+            if (sayfa < 1 || sayfa > maxSayfa) {
+                return interaction.reply({ content: `❌ Geçersiz sayfa! 1 ile ${maxSayfa} arasında bir sayı gir.`, flags: 64 });
+            }
+
+            const baslangic = (sayfa - 1) * limit;
+            const listeSlices = oyuncular.slice(baslangic, baslangic + limit);
             
             let liste = "";
-            serbestler.forEach((f, i) => {
-                liste += `**${i + 1}. ${f.name}** | Mevki: **${f.mevki}** | Değer: **${f.piyasaDegeri}M€** | Maaş: **€${f.maas.toLocaleString()}**\n`;
+            listeSlices.forEach((f, i) => {
+                liste += `**${baslangic + i + 1}. ${f.name}** | Mevki: **${f.mevki}** | Değer: **${f.piyasaDegeri}M€** | Maaş: **€${f.maas.toLocaleString()}**\n`;
             });
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📋 GÜNCEL 2026 TRANSFER HAVUZU').setDescription(liste).setColor('#3498db')] });
+            return interaction.reply({ 
+                embeds: [new EmbedBuilder()
+                    .setTitle(`📋 GÜNCEL 2026 TRANSFER HAVUZU (Sayfa ${sayfa}/${maxSayfa})`)
+                    .setDescription(liste)
+                    .setColor('#3498db')
+                    .setFooter({ text: 'Diğer sayfalar için: /futbolcu-havuzu sayfa:2' })
+                ] 
+            });
         }
 
         if (commandName === 'transfer-teklif') {
