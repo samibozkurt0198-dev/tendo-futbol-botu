@@ -172,6 +172,14 @@ function otomatikTakimlariVeFutbolculariYukle() {
 
 const commands = [
     new SlashCommandBuilder()
+        .setName('kayıt')
+        .setDescription('Bir kullanıcıyı kayıt eder ve adını günceller.')
+        .addUserOption(opt => opt.setName('kullanici').setDescription('Kayıt edilecek kişi').setRequired(true))
+        .addStringOption(opt => opt.setName('isim').setDescription('Kullanıcının yeni adı (Örn: Okan Buruk)').setRequired(true))
+        .addIntegerOption(opt => opt.setName('yas').setDescription('Kullanıcının yaşı').setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
+
+    new SlashCommandBuilder()
         .setName('futbolcu-havuzu')
         .setDescription('Transfer edilebilir güncel 2026 futbolcularını listeler.')
         .addIntegerOption(opt => opt.setName('sayfa').setDescription('Görmek istediğin sayfa numarası')),
@@ -230,6 +238,18 @@ client.once('ready', async () => {
         console.log('Slash komutları güncellendi.');
     } catch (error) {
         console.error('Komut yükleme hatası:', error);
+    }
+});
+
+// YENİ ÜYE KATILDIĞINDA OTOMATİK KAYITSIZ ROLÜ VERME
+client.on('guildMemberAdd', async member => {
+    try {
+        const kayitsizRol = member.guild.roles.cache.find(r => r.name.toLowerCase() === 'kayıtsız' || r.name.toLowerCase() === 'kayitsiz');
+        if (kayitsizRol) {
+            await member.roles.add(kayitsizRol);
+        }
+    } catch (err) {
+        console.error('Oto-rol verme hatası:', err);
     }
 });
 
@@ -387,6 +407,42 @@ client.on('interactionCreate', async interaction => {
         const { commandName, options, user, channel, guild } = interaction;
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
+
+        // KAYIT KOMUTU
+        if (commandName === 'kayıt') {
+            const hedefUye = options.getMember('kullanici');
+            const yeniIsim = options.getString('isim');
+            const yas = options.getInteger('yas');
+
+            if (!hedefUye) return interaction.reply({ content: '❌ Geçerli bir kullanıcı belirtmelisin!', flags: 64 });
+
+            try {
+                // İsmi güncelleme (Örnek: Okan Buruk | 25)
+                await hedefUye.setNickname(`${yeniIsim} | ${yas}`);
+
+                // Kayıtsız rolünü al, Kayıtlı rolünü ver
+                const kayitsizRol = guild.roles.cache.find(r => r.name.toLowerCase() === 'kayıtsız' || r.name.toLowerCase() === 'kayitsiz');
+                const kayitliRol = guild.roles.cache.find(r => r.name.toLowerCase() === 'üye' || r.name.toLowerCase() === 'oyuncu' || r.name.toLowerCase() === 'kayıtlı');
+
+                if (kayitsizRol && hedefUye.roles.cache.has(kayitsizRol.id)) {
+                    await hedefUye.roles.remove(kayitsizRol);
+                }
+                if (kayitliRol) {
+                    await hedefUye.roles.add(kayitliRol);
+                }
+
+                return interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setTitle('✅ BAŞARILI KAYIT')
+                        .setDescription(`**${hedefUye.user.tag}** başarıyla kayıt edildi!\n\n📝 **Yeni İsim:** ${yeniIsim} | ${yas}`)
+                        .setColor('#2ecc71')
+                    ] 
+                });
+            } catch (err) {
+                console.error(err);
+                return interaction.reply({ content: '❌ Kullanıcının adı veya rolleri değiştirilemedi! Botun rolü, kayıt edilecek kişiden üst sırada olmalı.', flags: 64 });
+            }
+        }
 
         if (commandName === 'futbolcu-havuzu') {
             const sayfa = options.getInteger('sayfa') || 1;
@@ -648,7 +704,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'lig-sifirla') {
             Object.values(db.takimlar).forEach(t => {
-                t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m = 0;
+                t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m: 0;
             });
             db.sezonAktif = false;
             veriyiKaydet();
