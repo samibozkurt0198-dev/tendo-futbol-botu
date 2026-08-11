@@ -129,7 +129,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Joshua Zirkzee", mevki: "SNT", deger: 40 },
     { isim: "Joao Neves", mevki: "OS", deger: 60 },
     { isim: "Leny Yoro", mevki: "STP", deger: 50 },
-    // +50 Yeni Futbolcu Ekstra
     { isim: "Ousmane Dembele", mevki: "KANAT", deger: 60 },
     { isim: "Gianluigi Donnarumma", mevki: "KL", deger: 40 },
     { isim: "Julian Alvarez", mevki: "SNT", deger: 90 },
@@ -224,7 +223,8 @@ function otomatikTakimlariVeFutbolculariYukle() {
 }
 
 function kullanicininTakiminiBul(userId) {
-    return Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === String(userId).trim());
+    const temizId = String(userId).trim();
+    return Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
 }
 
 const commands = [
@@ -232,43 +232,43 @@ const commands = [
         .setName('kayıt')
         .setDescription('Bir kullanıcıyı kayıt eder ve adını günceller.')
         .addUserOption(opt => opt.setName('kullanici').setDescription('Kayıt edilecek kişi').setRequired(true))
-        .addStringOption(opt => opt.setName('isim').setDescription('Kullanıcının yeni adı (Örn: Okan Buruk)').setRequired(true))
+        .addStringOption(opt => opt.setName('isim').setDescription('Kullanıcının yeni adı').setRequired(true))
         .addIntegerOption(opt => opt.setName('yas').setDescription('Kullanıcının yaşı').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
 
     new SlashCommandBuilder()
         .setName('futbolcu-havuzu')
         .setDescription('Transfer edilebilir güncel futbolcuları listeler.')
-        .addIntegerOption(opt => opt.setName('sayfa').setDescription('Görmek istediğin sayfa numarası')),
+        .addIntegerOption(opt => opt.setName('sayfa').setDescription('Sayfa numarası')),
 
     new SlashCommandBuilder()
         .setName('transfer-teklif')
-        .setDescription('Serbest veya başka takımdaki bir oyuncuya bonservis ve maaş teklif edersiniz.')
+        .setDescription('Serbest veya başka takımdaki bir oyuncuya teklif yaparsınız.')
         .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Futbolcunun adı').setRequired(true))
-        .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis bedeli (Milyon €)').setRequired(true))
+        .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis (Milyon €)').setRequired(true))
         .addIntegerOption(opt => opt.setName('haftalik-maas').setDescription('Haftalık maaş (€)').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('serbest-birak')
         .setDescription('Kadronuzdaki bir futbolcuyu serbest bırakırsınız.')
-        .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Serbest bırakılacak futbolcunun adı').setRequired(true)),
+        .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Futbolcunun adı').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('transfermarkt-kanal-ayarla')
-        .setDescription('Transfer duyurularının yapılacağı kanalı ayarlar.')
-        .addChannelOption(opt => opt.setName('kanal').setDescription('Transfermarkt metin kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDescription('Transfer duyuru kanalını ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Kanal').addChannelTypes(ChannelType.GuildText).setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları ve bütçeleri listeler.'),
+    new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları listeler.'),
     new SlashCommandBuilder().setName('takim-sec').setDescription('Bir takımın Teknik Direktörü olursunuz.')
         .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı').setRequired(true)),
     
     new SlashCommandBuilder()
         .setName('mac-yap')
-        .setDescription('Başka bir takımla canlı maç yaparsınız.')
+        .setDescription('Canlı maç yaparsınız.')
         .addStringOption(opt => opt.setName('rakip-takim').setDescription('Rakip takım adı').setRequired(true)),
 
-    new SlashCommandBuilder().setName('puan-durumu').setDescription('Güncel puan durumunu gösterir.'),
+    new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
     new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
@@ -276,7 +276,7 @@ const commands = [
     
     new SlashCommandBuilder()
         .setName('butce-ver')
-        .setDescription('İstediğiniz takıma bütçe ekler (Yönetici).')
+        .setDescription('Takıma bütçe ekler (Yönetici).')
         .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı').setRequired(true))
         .addIntegerOption(opt => opt.setName('miktar').setDescription('Miktar (Milyon €)').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
@@ -287,7 +287,7 @@ const commands = [
     
     new SlashCommandBuilder().setName('sezon-baslat').setDescription('Lig sezonunu başlatır.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    new SlashCommandBuilder().setName('sezon-durdur').setDescription('Lig sezonunu durdurur / bekletir.')
+    new SlashCommandBuilder().setName('sezon-durdur').setDescription('Lig sezonunu durdurur.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('lig-sifirla').setDescription('Ligi sıfırlar.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -582,7 +582,6 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
             }
 
-            // Eğer oyuncu SERBEST ise
             if (hedefFutbolcu.takim === 'Serbest') {
                 if (bonservisMilyon < (hedefFutbolcu.piyasaDegeri * 0.70)) {
                     return interaction.reply({ embeds: [new EmbedBuilder().setTitle('❌ Teklif Reddedildi').setDescription(`Oyuncu teklifinizi çok düşük buldu. Piyasa değeri: ${hedefFutbolcu.piyasaDegeri}M€`).setColor('#e74c3c')], flags: 64 });
@@ -594,14 +593,10 @@ client.on('interactionCreate', async interaction => {
 
                 await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
                 return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`**${hedefFutbolcu.name}** serbest oyuncu olarak kadroya katıldı!`).setColor('#2ecc71')] });
-            } 
-            
-            // Eğer oyuncu BAŞKA BİR TAKIMDA ise
-            else {
+            } else {
                 const eskiTakimAdi = hedefFutbolcu.takim;
                 const sans = Math.random();
 
-                // %40 Reddedildi, %30 Karşı Teklif, %30 Kabul Edildi
                 if (sans < 0.40) {
                     return interaction.reply({
                         embeds: [new EmbedBuilder()
@@ -632,7 +627,7 @@ client.on('interactionCreate', async interaction => {
                     await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
                     return interaction.reply({
                         embeds: [new EmbedBuilder()
-                            .setTitle('🔥 KULüplerARASI TRANSFER BAŞARILI!')
+                            .setTitle('🔥 KULÜPLERARASI TRANSFER BAŞARILI!')
                             .setDescription(`**${eskiTakimAdi}** ile anlaşmaya varıldı! **${hedefFutbolcu.name}** artık **${kulup.isim}** forması giyecek.`)
                             .setColor('#2ecc71')
                         ]
@@ -738,7 +733,7 @@ client.on('interactionCreate', async interaction => {
             const miktarMilyon = options.getInteger('miktar');
             const eklenenPara = miktarMilyon * 1000000;
 
-            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenTakim));
+            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenIsim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim) || k === girilenTakim);
             if (!bulunanKey) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
 
             db.takimlar[bulunanKey].butce += eklenenPara;
