@@ -54,6 +54,41 @@ function veriyiKaydet() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+// Hazır 20 Ünlü Takım Listesi
+const UNLU_TAKIMLAR = [
+    "Galatasaray", "Fenerbahçe", "Beşiktaş", "Trabzonspor",
+    "Real Madrid", "Barcelona", "Manchester City", "Arsenal",
+    "Liverpool", "Manchester United", "Bayern München", "Borussia Dortmund",
+    "Paris Saint-Germain", "Inter", "AC Milan", "Juventus",
+    "Atletico Madrid", "Chelsea", "Napoli", "Benfica"
+];
+
+function otomatikTakimlariYukle() {
+    let eklendi = 0;
+    UNLU_TAKIMLAR.forEach(takimIsmi => {
+        const key = takimIsmi.toLowerCase();
+        if (!db.takimlar[key]) {
+            db.takimlar[key] = {
+                isim: takimIsmi,
+                kurucu: "Sistem",
+                puan: 0,
+                av: 0,
+                o: 0,
+                g: 0,
+                b: 0,
+                m: 0,
+                butce: 500000,
+                sonSponsor: 0
+            };
+            eklendi++;
+        }
+    });
+    if (eklendi > 0) {
+        veriyiKaydet();
+    }
+    return eklendi;
+}
+
 // Sunucudaki ismi güncelleme fonksiyonu
 async function isimGuncelle(guild, member, isim, mevki, piyasaDegeri) {
     try {
@@ -71,7 +106,11 @@ async function isimGuncelle(guild, member, isim, mevki, piyasaDegeri) {
 }
 
 const commands = [
-    // /kayit
+    new SlashCommandBuilder()
+        .setName('otomatik-takimlar')
+        .setDescription('20 adet ünlü takımı otomatik olarak lige ekler (Yönetici).')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder()
         .setName('kayit')
         .setDescription('Kullanıcıyı kaydeder ve ismini düzenler (Kayıt Yetkilisi).')
@@ -79,21 +118,19 @@ const commands = [
         .addStringOption(opt => opt.setName('isim').setDescription('Oyuncu adı').setRequired(true))
         .addStringOption(opt => opt.setName('mevki').setDescription('Mevki (Örn: SNT, KANAT, OS, STP, KL)').setRequired(true)),
 
-    // /dver
     new SlashCommandBuilder()
         .setName('dver')
         .setDescription('Oyuncunun piyasa değerini arttırır (Değer Yetkilisi).')
         .addUserOption(opt => opt.setName('kisi').setDescription('Değer verilecek oyuncu').setRequired(true))
         .addIntegerOption(opt => opt.setName('miktar').setDescription('Eklenecek değer (M€)').setRequired(true)),
 
-    // /dal
     new SlashCommandBuilder()
         .setName('dal')
         .setDescription('Oyuncunun piyasa değerini düşürür (Değer Yetkilisi).')
         .addUserOption(opt => opt.setName('kisi').setDescription('Değeri alınacak oyuncu').setRequired(true))
         .addIntegerOption(opt => opt.setName('miktar').setDescription('Düşürülecek değer (M€)').setRequired(true)),
 
-    new SlashCommandBuilder().setName('antrenman').setDescription('Antrenman yaparak piyasa değerini +5M€ arttırır (1 saatte bir).'),
+    new SlashCommandBuilder().setName('antrenman').setDescription('Antrenman yaparak piyasa değerini rastgele (1M€ - 7M€) arttırır (1 saatte bir).'),
 
     new SlashCommandBuilder().setName('kart').setDescription('Oyuncu kartını görüntüler.')
         .addUserOption(opt => opt.setName('hedef').setDescription('Kartı görüntülenecek oyuncu')),
@@ -129,6 +166,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 client.once('ready', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
+    
+    const eklenen = otomatikTakimlariYukle();
+    console.log(`${eklenen} adet yeni takım sisteme otomatik eklendi.`);
+
     try {
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
@@ -282,7 +323,18 @@ client.on('interactionCreate', async interaction => {
     try {
         const { commandName, options, user, channel, member, guild } = interaction;
 
-        // KAYIT KOMUTU
+        if (commandName === 'otomatik-takimlar') {
+            const eklenen = otomatikTakimlariYukle();
+            return interaction.reply({
+                embeds: [
+                    new EmbedBuilder()
+                        .setTitle('⚽ Ünlü Takımlar Yüklendi')
+                        .setDescription(`Sisteme **${eklenen}** adet yeni takım eklendi.`)
+                        .setColor('#2ecc71')
+                ]
+            });
+        }
+
         if (commandName === 'kayit') {
             if (KAYIT_YETKILI_ROL_ID !== 'BURAYA_KAYIT_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(KAYIT_YETKILI_ROL_ID)) {
                 return interaction.reply({ 
@@ -327,7 +379,6 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // DEĞER VERME KOMUTU (/dver)
         if (commandName === 'dver') {
             if (DEGER_YETKILI_ROL_ID !== 'BURAYA_DEGER_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(DEGER_YETKILI_ROL_ID)) {
                 return interaction.reply({ 
@@ -365,7 +416,6 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // DEĞER ALMA KOMUTU (/dal)
         if (commandName === 'dal') {
             if (DEGER_YETKILI_ROL_ID !== 'BURAYA_DEGER_YETKILISI_ROL_ID_YAZ' && !member.roles.cache.has(DEGER_YETKILI_ROL_ID)) {
                 return interaction.reply({ 
@@ -403,7 +453,7 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // ANTRENMAN KOMUTU (+5M€)
+        // RASTGELE 1M€ - 7M€ ANTRENMAN KOMUTU
         if (commandName === 'antrenman') {
             const oyuncu = db.oyuncular[user.id];
 
@@ -424,7 +474,10 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            oyuncu.piyasaDegeri = (oyuncu.piyasaDegeri || 1) + 5;
+            // 1 ile 7 arasında rastgele değer artışı üretir
+            const kazanilanDeger = Math.floor(Math.random() * 7) + 1;
+
+            oyuncu.piyasaDegeri = (oyuncu.piyasaDegeri || 1) + kazanilanDeger;
             oyuncu.sonAntrenman = simdi;
             oyuncu.sakatlik = false;
             oyuncu.cezali = false;
@@ -437,9 +490,10 @@ client.on('interactionCreate', async interaction => {
                 embeds: [
                     new EmbedBuilder()
                         .setTitle('🏋️‍♂️ Antrenman Tamamlandı!')
-                        .setDescription(`**${oyuncu.name}** harika bir antrenman geçirdi! **+5M€ Piyasa Değeri** kazandı.`)
+                        .setDescription(`**${oyuncu.name}** verimli bir antrenman geçirdi! **+${kazanilanDeger}M€ Piyasa Değeri** kazandı.`)
                         .setColor('#f39c12')
                         .addFields(
+                            { name: 'Kazanılan Değer', value: `+${kazanilanDeger}M€`, inline: true },
                             { name: 'Yeni Piyasa Değeri', value: `${oyuncu.piyasaDegeri}M€`, inline: true },
                             { name: 'Bir Sonraki Antrenman', value: '1 saat sonra', inline: true }
                         )
@@ -447,7 +501,6 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // KART VE PROFİL
         if (commandName === 'kart' || commandName === 'profil') {
             const target = options.getUser('hedef') || user;
             const p = db.oyuncular[target.id];
