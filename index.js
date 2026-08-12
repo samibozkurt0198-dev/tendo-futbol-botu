@@ -340,7 +340,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Belirttiğin bütçeyi asla aşmayan kadro önizlemesi oluşturur.')
+        .setDescription('Belirttiğin bütçeye uygun rastgele 11 oyuncu seçer.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
         .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe üst sınırı (Milyon €)').setRequired(true)),
 
@@ -728,43 +728,48 @@ client.on('interactionCreate', async interaction => {
             const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
 
-            const uygunSerbestler = serbestler.filter(o => (o.piyasaDegeri * 1000000) <= hedefButceGercek);
-            if (uygunSerbestler.length < 11) {
-                return interaction.editReply({ content: `❌ Bu bütçeye (${hedefButceMilyon}M€) uygun yeterli serbest oyuncu bulunamadı. Bütçeyi biraz artırmayı dene!` });
+            if (serbestler.length < 11) {
+                return interaction.editReply({ content: `❌ Yeterli serbest oyuncu yok!` });
             }
 
-            const siraliSerbestler = uygunSerbestler.sort((a, b) => (b.piyasaDegeri) - (a.piyasaDegeri));
+            // Rastgele oyuncu seçimi yaparak bütçe aşımını önleyen esnek sistem
+            const klListesi = serbestler.filter(o => o.mevki === 'KL');
+            const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
+            const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
+            const sntListesi = serbestler.filter(o => o.mevki === 'SNT');
 
-            const klListesi = siraliSerbestler.filter(o => o.mevki === 'KL');
-            const dfListesi = siraliSerbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
-            const osListesi = siraliSerbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
-            const sntListesi = siraliSerbestler.filter(o => o.mevki === 'SNT');
+            function rastgeleSec(arr) {
+                return arr[Math.floor(Math.random() * arr.length)];
+            }
 
             let secilenler = [];
             let toplamBonservis = 0;
 
-            let secilenKl = klListesi[0] || uygunSerbestler[0];
+            let secilenKl = rastgeleSec(klListesi.length > 0 ? klListesi : serbestler);
             secilenler.push(secilenKl);
             toplamBonservis += secilenKl.piyasaDegeri * 1000000;
 
             for (let i = 0; i < defSayisi; i++) {
-                let d = dfListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
+                let d = rastgeleSec(dfListesi.length > 0 ? dfListesi : serbestler);
+                while (secilenler.includes(d)) d = rastgeleSec(serbestler);
                 secilenler.push(d);
                 toplamBonservis += d.piyasaDegeri * 1000000;
             }
             for (let i = 0; i < osSayisi; i++) {
-                let o = osListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
+                let o = rastgeleSec(osListesi.length > 0 ? osListesi : serbestler);
+                while (secilenler.includes(o)) o = rastgeleSec(serbestler);
                 secilenler.push(o);
                 toplamBonservis += o.piyasaDegeri * 1000000;
             }
             for (let i = 0; i < sntSayisi; i++) {
-                let s = sntListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
+                let s = rastgeleSec(sntListesi.length > 0 ? sntListesi : serbestler);
+                while (secilenler.includes(s)) s = rastgeleSec(serbestler);
                 secilenler.push(s);
                 toplamBonservis += s.piyasaDegeri * 1000000;
             }
 
             if (toplamBonservis > hedefButceGercek) {
-                return interaction.editReply({ content: `❌ Seçilen bütçeye (${hedefButceMilyon}M€) tam uydurulamadı, toplam maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** oldu. Lütfen biraz daha yüksek bütçe gir!` });
+                return interaction.editReply({ content: `❌ Seçilen rastgele kadronun maliyeti (**${(toplamBonservis/1000000).toFixed(1)}M€**) girdiğin bütçeyi (**${hedefButceMilyon}M€**) aştı. Lütfen bütçeyi biraz daha yüksek gir veya tekrar dene!` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
