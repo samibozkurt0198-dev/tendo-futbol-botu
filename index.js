@@ -706,7 +706,7 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
                     .setColor('#2ecc71');
 
                 await channel.send({ embeds: [bitisEmbed] }).catch(() => {});
-                istatistikGuncelle(evSahibi, deplasman, evSkor, depSkor);
+                istatistikGuncelle(evSahibi, deplasman, evSkor, depSkor, channel);
                 tahminleriKontrolEtVeOdulVer(evSahibi, deplasman, evSkor, depSkor, channel);
                 resolve(true);
                 return;
@@ -1136,7 +1136,7 @@ client.on('interactionCreate', async interaction => {
             const skor = options.getString('skor').trim();
             if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) return interaction.reply({ content: '❌ Maç aktif değil.', flags: 64 });
             if (!db.kullanilanTahminler) db.kullanilanTahminler = {};
-            if (db.kullanilanTahminler[user.id]) return.reply ? interaction.reply({ content: '❌ Hakkınız bitti.', flags: 64 }) : null;
+            if (db.kullanilanTahminler[user.id]) return interaction.reply({ content: '❌ Hakkınız bitti.', flags: 64 });
 
             if (!db.macTahminleri) db.macTahminleri = {};
             db.macTahminleri[user.id] = { mac: secilenMac, skor: skor };
