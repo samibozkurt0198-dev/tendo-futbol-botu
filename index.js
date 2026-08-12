@@ -48,6 +48,7 @@ let db = {
     hosgeldinKanalId: null,
     sponsorKanalId: null,
     botCalistirmaKanalId: null,
+    antrenmanKanalId: null,
     otomatikSezonVerisi: null
 };
 
@@ -67,6 +68,7 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.hosgeldinKanalId) db.hosgeldinKanalId = dosyaVerisi.hosgeldinKanalId;
         if (dosyaVerisi.sponsorKanalId) db.sponsorKanalId = dosyaVerisi.sponsorKanalId;
         if (dosyaVerisi.botCalistirmaKanalId) db.botCalistirmaKanalId = dosyaVerisi.botCalistirmaKanalId;
+        if (dosyaVerisi.antrenmanKanalId) db.antrenmanKanalId = dosyaVerisi.antrenmanKanalId;
         if (dosyaVerisi.otomatikSezonVerisi) db.otomatikSezonVerisi = dosyaVerisi.otomatikSezonVerisi;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
@@ -370,6 +372,12 @@ const commands = [
         .setName('transfer-kanal-ayarla')
         .setDescription('Transfer işlemlerinin yapılabileceği özel kanalı ayarlar.')
         .addChannelOption(opt => opt.setName('kanal').setDescription('Transfer Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder()
+        .setName('antrenman-kanal-ayarla')
+        .setDescription('Antrenman komutunun kullanılabileceği özel kanalı ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Antrenman Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder()
@@ -825,7 +833,6 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor, channel) {
         tEv.butce += 1000000; tDep.butce += 1000000;
     }
 
-    // Sakatlık ve cezaları 1 maç azalt
     Object.values(db.oyuncular).forEach(o => {
         if (o.takim === tEv.isim || o.takim === tDep.isim) {
             if (o.cezali > 0) o.cezali--;
@@ -876,7 +883,6 @@ async function otomatikSezonBaslatGenel(channel, guild) {
         let sampiyon = puanSiralamasi[0];
         sampiyon.butce += 100000000;
 
-        // Sezon bittiğinde tüm sakatlık ve cezaları sıfırla
         Object.values(db.oyuncular).forEach(o => {
             o.sakatlik = 0;
             o.cezali = 0;
@@ -909,6 +915,16 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName, options, user, channel, guild, member } = interaction;
 
+    // Antrenman Komutu Özel Kanal Kontrolü
+    if (commandName === 'antrenman' && db.antrenmanKanalId) {
+        if (channel.id !== db.antrenmanKanalId) {
+            return interaction.reply({
+                content: `❌ Antrenman komutu sadece <#${db.antrenmanKanalId}> kanalında kullanılabilir!`,
+                flags: 64
+            });
+        }
+    }
+
     // Transfer Komutları Kanal Kontrolü
     const transferKomutlari = ['transfer-teklif', 'transfer-kabul', 'transfer-red', 'serbest-birak', 'futbolcu-havuzu'];
     if (transferKomutlari.includes(commandName) && db.transferKanalAyarlaId) {
@@ -923,11 +939,12 @@ client.on('interactionCreate', async interaction => {
     // Genel Bot Kanal Kontrolü
     const isBotChannel = db.botCalistirmaKanalId && channel.id === db.botCalistirmaKanalId;
     const isSponsorChannel = db.sponsorKanalId && channel.id === db.sponsorKanalId;
+    const isAntrenmanChannel = db.antrenmanKanalId && channel.id === db.antrenmanKanalId;
 
-    if (commandName !== 'bot-kanal' && commandName !== 'sponsor-kanal-ayarla' && commandName !== 'transfer-kanal-ayarla') {
-        if (db.botCalistirmaKanalId && !isBotChannel && !isSponsorChannel && !transferKomutlari.includes(commandName)) {
+    if (commandName !== 'bot-kanal' && commandName !== 'sponsor-kanal-ayarla' && commandName !== 'transfer-kanal-ayarla' && commandName !== 'antrenman-kanal-ayarla') {
+        if (db.botCalistirmaKanalId && !isBotChannel && !isSponsorChannel && !isAntrenmanChannel && !transferKomutlari.includes(commandName)) {
             return interaction.reply({ 
-                content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> veya <#${db.sponsorKanalId || 'belirlenen sponsor'}> kanalında kullanabilirsin!`, 
+                content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> veya ilgili özel kanallarda kullanabilirsin!`, 
                 flags: 64 
             });
         }
@@ -956,6 +973,13 @@ client.on('interactionCreate', async interaction => {
             db.transferKanalAyarlaId = secilenKanal.id;
             veriyiKaydet();
             return interaction.reply({ content: `✅ Transfer komutlarının kullanılacağı kanal başarıyla ${secilenKanal} olarak ayarlandı!`, flags: 64 });
+        }
+
+        if (commandName === 'antrenman-kanal-ayarla') {
+            const secilenKanal = options.getChannel('kanal');
+            db.antrenmanKanalId = secilenKanal.id;
+            veriyiKaydet();
+            return interaction.reply({ content: `✅ Antrenman komutunun kullanılacağı kanal başarıyla ${secilenKanal} olarak ayarlandı!`, flags: 64 });
         }
 
         if (commandName === 'twitter') {
@@ -1238,7 +1262,6 @@ client.on('interactionCreate', async interaction => {
 
             if (kulup.butce < tutar) return interaction.reply({ content: '❌ Kasa yetersiz!', flags: 64 });
 
-            // Eski takıma (satıcı kulübe) bonservis bedelini ekle
             const eskiTakimKey = f.takim ? f.takim.toLowerCase() : null;
             if (eskiTakimKey && db.takimlar[eskiTakimKey]) {
                 db.takimlar[eskiTakimKey].butce += tutar;
