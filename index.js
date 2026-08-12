@@ -78,6 +78,7 @@ const UNLU_TAKIMLAR = [
 ];
 
 const GUNCEL_FUTBOLCULAR = [
+    // --- MEVCUT YILDIZLAR ---
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
     { isim: "Jude Bellingham", mevki: "OS", deger: 160 },
@@ -106,7 +107,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Ederson", mevki: "KL", deger: 35 },
     { isim: "Mike Maignan", mevki: "KL", deger: 35 },
     { isim: "Gianluigi Donnarumma", mevki: "KL", deger: 40 },
-
     { isim: "Lamine Yamal", mevki: "KANAT", deger: 140 },
     { isim: "Rodrygo", mevki: "KANAT", deger: 100 },
     { isim: "Rafael Leao", mevki: "KANAT", deger: 90 },
@@ -158,7 +158,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Gregor Kobel", mevki: "KL", deger: 40 },
     { isim: "Diogo Costa", mevki: "KL", deger: 45 },
     { isim: "Jan Oblak", mevki: "KL", deger: 25 },
-
     { isim: "Uğurcan Çakır", mevki: "KL", deger: 9 },
     { isim: "Altay Bayındır", mevki: "KL", deger: 6 },
     { isim: "Ersin Destanoğlu", mevki: "KL", deger: 4 },
@@ -169,7 +168,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Muhammet Şengezer", mevki: "KL", deger: 2 },
     { isim: "Okan Kocuk", mevki: "KL", deger: 2 },
     { isim: "Ertaç Özbir", mevki: "KL", deger: 1 },
-
     { isim: "Abdülkerim Bardakcı", mevki: "STP", deger: 8 },
     { isim: "Çağlar Söyüncü", mevki: "STP", deger: 9 },
     { isim: "Merih Demiral", mevki: "STP", deger: 7 },
@@ -208,13 +206,66 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Ali Şansal", mevki: "KL", deger: 1 },
     { isim: "Emre Demir", mevki: "OS", deger: 2 },
     { isim: "Yasin Özcan", mevki: "STP", deger: 4 },
-    { isim: "Mehmet Aydın", mevki: "DF", deger: 3 }
+    { isim: "Mehmet Aydın", mevki: "DF", deger: 3 },
+
+    // --- EKSTRA 50+ YENİ DÜNYA YILDIZI VE FUTBOLCU ---
+    { isim: "Lionel Messi", mevki: "KANAT", deger: 30 },
+    { isim: "Cristiano Ronaldo", mevki: "SNT", deger: 15 },
+    { isim: "Neymar Jr", mevki: "KANAT", deger: 45 },
+    { isim: "Karim Benzema", mevki: "SNT", deger: 25 },
+    { isim: "Robert Lewandowski", mevki: "SNT", deger: 15 },
+    { isim: "Antoine Griezmann", mevki: "SNT", deger: 40 },
+    { isim: "Paulo Dybala", mevki: "OS", deger: 25 },
+    { isim: "Lukaku", mevki: "SNT", deger: 30 },
+    { isim: "Ciro Immobile", mevki: "SNT", deger: 15 },
+    { isim: "Sadio Mane", mevki: "KANAT", deger: 20 },
+    { isim: "Riyad Mahrez", mevki: "KANAT", deger: 15 },
+    { isim: "N'Golo Kante", mevki: "OS", deger: 10 },
+    { isim: "Casemiro", mevki: "OS", deger: 15 },
+    { isim: "Toni Kroos (Efsane)", mevki: "OS", deger: 50 },
+    { isim: "Luka Modric", mevki: "OS", deger: 8 },
+    { isim: "Manuel Neuer", mevki: "KL", deger: 5 },
+    { isim: "Hugo Lloris", mevki: "KL", deger: 3 },
+    { isim: "Keylor Navas", mevki: "KL", deger: 2 },
+    { isim: "Wojciech Szczesny", mevki: "KL", deger: 10 },
+    { isim: "Matthijs de Ligt", mevki: "STP", deger: 55 },
+    { isim: "Lisandro Martinez", mevki: "STP", deger: 45 },
+    { isim: "Ben White", mevki: "DF", deger: 55 },
+    { isim: "Kyle Walker", mevki: "DF", deger: 13 },
+    { isim: "John Stones", mevki: "STP", deger: 38 },
+    { isim: "Manuel Akanji", mevki: "STP", deger: 40 },
+    { isim: "Nathan Ake", mevki: "DF", deger: 40 },
+    { isim: "Lucas Paqueta", mevki: "OS", deger: 65 },
+    { isim: "Bruno Guimaraes", mevki: "OS", deger: 85 },
+    { isim: "Sandro Tonali", mevki: "OS", deger: 40 },
+    { isim: "James Maddison", mevki: "OS", deger: 70 },
+    { isim: "Dejan Kulusevski", mevki: "KANAT", deger: 55 },
+    { isim: "Son Heung-min", mevki: "KANAT", deger: 50 },
+    { isim: "Richarlison", mevki: "SNT", deger: 35 },
+    { isim: "Gabriel Jesus", mevki: "SNT", deger: 65 },
+    { isim: "Kai Havertz", mevki: "SNT", deger: 75 },
+    { isim: "Raheem Sterling", mevki: "KANAT", deger: 25 },
+    { isim: "Christopher Nkunku", mevki: "OS", deger: 60 },
+    { isim: "Nicolas Jackson", mevki: "SNT", deger: 40 },
+    { isim: "Marcus Thuram", mevki: "SNT", deger: 65 },
+    { isim: "Benjamin Pavard", mevki: "STP", deger: 40 },
+    { isim: "Federico Dimarco", mevki: "DF", deger: 50 },
+    { isim: "Denzel Dumfries", mevki: "DF", deger: 25 },
+    { isim: "Hakan Çalhanoğlu", mevki: "OS", deger: 45 },
+    { isim: "Adrien Rabiot", mevki: "OS", deger: 35 },
+    { isim: "Teun Koopmeiners", mevki: "OS", deger: 50 },
+    { isim: "Douglas Luiz", mevki: "OS", deger: 55 },
+    { isim: "Marcus Edwards", mevki: "KANAT", deger: 20 },
+    { isim: "Orkun Kökçü", mevki: "OS", deger: 28 },
+    { isim: "Ferdi Kadıoğlu", mevki: "DF", deger: 30 },
+    { isim: "Arda Güler", mevki: "OS", deger: 45 },
+    { isim: "Kenan Yıldız", mevki: "KANAT", deger: 40 },
+    { isim: "Semih Kılıçsoy", mevki: "SNT", deger: 15 }
 ];
 
 function otomatikTakimlariVeFutbolculariYukle() {
     if (!db.takimlar) db.takimlar = {};
     
-    // Sadece takım hiç yoksa veya boşsa oluştur (Mevcut takımları ve kasadaki parayı EZMEZ)
     UNLU_TAKIMLAR.forEach(takimIsmi => {
         const key = takimIsmi.toLowerCase();
         if (!db.takimlar[key]) {
@@ -233,7 +284,6 @@ function otomatikTakimlariVeFutbolculariYukle() {
         }
     });
 
-    // Oyuncular hiç yoksa havuza ekle, varsa mevcut durumlarını koru
     if (!db.oyuncular || Object.keys(db.oyuncular).length === 0) {
         db.oyuncular = {};
         GUNCEL_FUTBOLCULAR.forEach((f, index) => {
@@ -295,16 +345,8 @@ const commands = [
     new SlashCommandBuilder()
         .setName('oto-ilk11')
         .setDescription('Belirttiğin bütçeye tam uygun, kadro önizlemesi oluşturur.')
-        .addStringOption(opt => 
-            opt.setName('dizilis')
-               .setDescription('Örn: 4-3-3, 4-4-2, 3-5-2 (Toplam 10 olmalı)')
-               .setRequired(true)
-        )
-        .addIntegerOption(opt => 
-            opt.setName('butce')
-               .setDescription('Harcanacak toplam bütçe (Milyon € cinsinden, örn: 50)')
-               .setRequired(true)
-        ),
+        .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
+        .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe (Milyon €)').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('11-onayla')
@@ -316,18 +358,13 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('tahmin')
-        .setDescription('Şu an oynanan veya aktif maçlar için skor tahmini yaparsınız (+50M€ ödüllü).')
-        .addStringOption(opt => 
-            opt.setName('mac')
-               .setDescription('Tahmin yapılacak maçı seçin')
-               .setRequired(true)
-               .setAutocomplete(true)
-        )
-        .addStringOption(opt => opt.setName('skor').setDescription('Tahmin edilen skor (Örn: 3-1)').setRequired(true)),
+        .setDescription('Maçlar için skor tahmini yaparsınız (+50M€ ödüllü).')
+        .addStringOption(opt => opt.setName('mac').setDescription('Tahmin yapılacak maç').setRequired(true).setAutocomplete(true))
+        .addStringOption(opt => opt.setName('skor').setDescription('Örn: 3-1').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('transfer-teklif')
-        .setDescription('Serbest veya başka takımdaki bir oyuncuya teklif yaparsınız.')
+        .setDescription('Futbolcuya teklif yaparsınız.')
         .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Futbolcunun adı').setRequired(true))
         .addIntegerOption(opt => opt.setName('bonservis').setDescription('Bonservis (Milyon €)').setRequired(true))
         .addIntegerOption(opt => opt.setName('haftalik-maas').setDescription('Haftalık maaş (€)').setRequired(true)),
@@ -406,25 +443,51 @@ client.once('ready', async () => {
 
 const olaylar = [
     { metin: "{dakika}' - ⚽ **GOOOOL!** {hücum} takımından **{oyuncu}** harika bir vuruşla fileleri havalandırdı! Asist: **{asist}**. Skor: {skor}", tip: "gol" },
-    { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} yıldızı **{oyuncu}** tribünleri coşturan harika bir gol attı! Harika pası veren: **{asist}**. Skor: {skor}", tip: "gol" },
+    { metin: "{dakika}' - ⚽ **MÜTHİŞ GOL!** {hücum} yıldızı **{oyuncu}** tribünleri coşturan muhteşem bir gol attı! Harika pası veren: **{asist}**. Skor: {skor}", tip: "gol" },
     { metin: "{dakika}' - 🧤 **HARİKA KURTARIŞ!** {hücum} atağında **{oyuncu}** şutunu çekti ama kaleci devleşti.", tip: "normal" },
     { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
     { metin: "{dakika}' - 📐 **KORNER!** {hücum} köşe vuruşu kazandı, tehlikeli orta geliyor.", tip: "normal" },
-    { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, direkt patladı!", tip: "normal" },
+    { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, direkten döndü!", tip: "normal" },
     { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" }
 ];
 
-function rastgeleFutbolcuSec(takimAdi, haricId = null) {
+// --- ÖZEL POZİSYONEL GOL VE ASİST SEÇİM FONKSİYONU ---
+function futbolcuSecPozisyonaGore(takimAdi, tip, haricId = null) {
     if (!db.oyuncular) db.oyuncular = {};
-    const tumu = Object.values(db.oyuncular).filter(o => o.takim === takimAdi && !o.sakatlik && !o.cezali && o.id !== haricId);
-    if (tumu.length > 0) {
-        return tumu[Math.floor(Math.random() * tumu.length)];
+    const takimOyunculari = Object.values(db.oyuncular).filter(o => o.takim === takimAdi && !o.sakatlik && !o.cezali && o.id !== haricId);
+    
+    // Eğer takımda hiç oyuncu yoksa havuzdan veya yedekten seç
+    const havuz = takimOyunculari.length > 0 ? takimOyunculari : Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
+    if (havuz.length === 0) return { name: "Bilinmeyen Oyuncu", id: null, mevki: "OS" };
+
+    if (tip === "gol") {
+        // Golleri öncelikle SNT ve KANAT'lar atsın (%80 ihtimal), az oranda OS, çok nadiren STP/DF/KL
+        const sntVeyaKanat = havuz.filter(o => o.mevki === 'SNT' || o.mevki === 'KANAT');
+        const ortaSaha = havuz.filter(o => o.mevki === 'OS');
+        const defansVeKL = havuz.filter(o => o.mevki === 'STP' || o.mevki === 'DF' || o.mevki === 'KL');
+
+        const sans = Math.random();
+        if (sans < 0.75 && sntVeyaKanat.length > 0) {
+            return sntVeyaKanat[Math.floor(Math.random() * sntVeyaKanat.length)];
+        } else if (sans < 0.93 && ortaSaha.length > 0) {
+            return ortaSaha[Math.floor(Math.random() * ortaSaha.length)];
+        } else if (defansVeKL.length > 0) {
+            return defansVeKL[Math.floor(Math.random() * defansVeKL.length)];
+        }
+    } else if (tip === "asist") {
+        // Asistleri çoğunlukla OS (Orta Saha) ve KANAT'lar yapsın
+        const osVeyaKanat = havuz.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
+        const digerleri = havuz.filter(o => o.mevki !== 'OS' && o.mevki !== 'KANAT');
+
+        const sans = Math.random();
+        if (sans < 0.80 && osVeyaKanat.length > 0) {
+            return osVeyaKanat[Math.floor(Math.random() * osVeyaKanat.length)];
+        } else if (digerleri.length > 0) {
+            return digerleri[Math.floor(Math.random() * digerleri.length)];
+        }
     }
-    const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest' && !o.sakatlik && !o.cezali);
-    if (serbestler.length > 0) {
-        return serbestler[Math.floor(Math.random() * serbestler.length)];
-    }
-    return { name: "Bilinmeyen Oyuncu", id: null, mevki: "OS" };
+
+    return havuz[Math.floor(Math.random() * havuz.length)];
 }
 
 let golKanalId = null;
@@ -504,7 +567,7 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
 
         const baslangicEmbed = new EmbedBuilder()
             .setTitle(`🎙️ MAÇ | ${macAdi}`)
-            .setDescription(`Karşılaşma hakemin düdüğüyle başladı! Şimdi \`/tahmin\` komutu ile bu maç için skor tahmininde bulunabilirsiniz!`)
+            .setDescription(`Karşılaşma hakemin düdüğüyle başladı! \`/tahmin\` komutu ile bu maç için skor tahmininde bulunabilirsiniz!`)
             .setColor('#e74c3c');
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
@@ -545,19 +608,11 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
             
-            let golAtan = rastgeleFutbolcuSec(hucumTakim);
-            let denemeSayisi = 0;
-            while (golAtan.mevki === 'KL' && denemeSayisi < 5) {
-                golAtan = rastgeleFutbolcuSec(hucumTakim);
-                denemeSayisi++;
-            }
-            if (golAtan.mevki === 'KL') {
-                golAtan.name = `${hucumTakim} Hücumcusu`;
-            }
-
-            let asistYapan = rastgeleFutbolcuSec(hucumTakim, golAtan.id);
+            // Yeni mantığa göre golü SNT/KANAT, asisti OS/KANAT yapsın
+            let golAtan = futbolcuSecPozisyonaGore(hucumTakim, "gol");
+            let asistYapan = futbolcuSecPozisyonaGore(hucumTakim, "asist", golAtan.id);
             if (asistYapan.name === golAtan.name) {
-                asistYapan.name = "Orta Saha Oyuncusu";
+                asistYapan = { name: "Orta Saha Oyuncusu", mevki: "OS" };
             }
 
             if (secilenOlay.tip === "gol") {
@@ -639,17 +694,9 @@ client.on('interactionCreate', async interaction => {
             const hedefUye = options.getMember('kullanici');
             const yeniIsim = options.getString('isim');
             const yas = options.getInteger('yas');
-
             if (!hedefUye) return interaction.reply({ content: '❌ Geçerli bir kullanıcı belirtmelisin!', flags: 64 });
-
             await hedefUye.setNickname(`${yeniIsim} | ${yas}`);
-            return interaction.reply({ 
-                embeds: [new EmbedBuilder()
-                    .setTitle('✅ BAŞARILI KAYIT')
-                    .setDescription(`**${hedefUye.user.tag}** başarıyla kayıt edildi!\n📝 **Yeni İsim:** ${yeniIsim} | ${yas}`)
-                    .setColor('#2ecc71')
-                ] 
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ BAŞARILI KAYIT').setDescription(`**${hedefUye.user.tag}** kayıt edildi!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'futbolcu-havuzu') {
@@ -657,109 +704,62 @@ client.on('interactionCreate', async interaction => {
             const oyuncular = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             const limit = 20;
             const maxSayfa = Math.ceil(oyuncular.length / limit) || 1;
-            
-            if (sayfa < 1 || sayfa > maxSayfa) {
-                return interaction.reply({ content: `❌ Geçersiz sayfa! 1 ile ${maxSayfa} arasında bir sayı gir.`, flags: 64 });
-            }
+            if (sayfa < 1 || sayfa > maxSayfa) return interaction.reply({ content: `❌ 1 ile ${maxSayfa} arası sayfa girin.`, flags: 64 });
 
             const baslangic = (sayfa - 1) * limit;
             const listeSlices = oyuncular.slice(baslangic, baslangic + limit);
-            
             let liste = "";
             listeSlices.forEach((f, i) => {
-                liste += `**${baslangic + i + 1}. ${f.name}** | Mevki: **${f.mevki}** | Değer: **${f.piyasaDegeri}M€** | Maaş: **€${f.maas.toLocaleString()}**\n`;
+                liste += `**${baslangic + i + 1}. ${f.name}** | ${f.mevki} | Değer: **${f.piyasaDegeri}M€**\n`;
             });
 
-            return interaction.reply({ 
-                embeds: [new EmbedBuilder()
-                    .setTitle(`📋 TRANSFER HAVUZU (Sayfa ${sayfa}/${maxSayfa})`)
-                    .setDescription(liste)
-                    .setColor('#3498db')
-                ] 
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`📋 TRANSFER HAVUZU (${sayfa}/${maxSayfa})`).setDescription(liste).setColor('#3498db')] });
         }
 
         if (commandName === 'oto-ilk11') {
             await interaction.deferReply();
-
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.editReply({ content: '❌ Ligde atanabileceğiniz takım kalmadı!' });
+            if (!kulup) return interaction.editReply({ content: '❌ Takım bulunamadı!' });
 
             const dizilisStr = options.getString('dizilis');
             const hedefButceMilyon = options.getInteger('butce');
             const hedefButceGercek = hedefButceMilyon * 1000000;
-
             const parcalar = dizilisStr.split('-').map(Number);
-            if (parcalar.length !== 3) {
-                return interaction.editReply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3`, `4-4-2` veya `3-5-2`' });
+            if (parcalar.length !== 3 || parcalar[0] + parcalar[1] + parcalar[2] !== 10) {
+                return interaction.editReply({ content: '❌ Hatalı diziliş! Örn: `4-3-3`' });
             }
 
-            const defSayisi = parcalar[0];
-            const osSayisi = parcalar[1];
-            const sntSayisi = parcalar[2];
-
-            if (defSayisi + osSayisi + sntSayisi !== 10) {
-                return interaction.editReply({ content: '❌ Dizilişteki oyuncu sayıları toplamı kaleci hariç **10** olmalıdır.' });
-            }
-
+            const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
-            
             const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const sntListesi = serbestler.filter(o => o.mevki === 'SNT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
 
-            if (klListesi.length < 1 || dfListesi.length < defSayisi || osListesi.length < osSayisi || sntListesi.length < sntSayisi) {
-                return interaction.editReply({ content: '❌ Yeterli serbest oyuncu bulunmuyor!' });
-            }
-
             let secilenler = [];
             let toplamBonservis = 0;
 
-            let uygunKl = klListesi.find(o => (o.piyasaDegeri * 1000000) <= (hedefButceGercek - toplamBonservis)) || klListesi[klListesi.length - 1];
-            secilenler.push(uygunKl);
-            toplamBonservis += uygunKl.piyasaDegeri * 1000000;
+            secilenler.push(klListesi[0] || serbestler[0]);
+            toplamBonservis += secilenler[0].piyasaDegeri * 1000000;
 
             for (let i = 0; i < defSayisi; i++) {
-                let kalanHak = defSayisi - i;
-                let kalanButce = hedefButceGercek - toplamBonservis;
-                let ortalamaButce = kalanButce / (kalanHak + osSayisi + sntSayisi);
-                
-                let uygunDf = dfListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= ortalamaButce * 1.5) 
-                           || dfListesi.filter(o => !secilenler.includes(o)).pop() 
-                           || dfListesi[0];
-                secilenler.push(uygunDf);
-                toplamBonservis += uygunDf.piyasaDegeri * 1000000;
+                let d = dfListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                secilenler.push(d);
+                toplamBonservis += d.piyasaDegeri * 1000000;
             }
-
             for (let i = 0; i < osSayisi; i++) {
-                let kalanHak = osSayisi - i;
-                let kalanButce = hedefButceGercek - toplamBonservis;
-                let ortalamaButce = kalanButce / (kalanHak + sntSayisi);
-
-                let uygunOs = osListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= ortalamaButce * 1.5) 
-                           || osListesi.filter(o => !secilenler.includes(o)).pop() 
-                           || osListesi[0];
-                secilenler.push(uygunOs);
-                toplamBonservis += uygunOs.piyasaDegeri * 1000000;
+                let o = osListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                secilenler.push(o);
+                toplamBonservis += o.piyasaDegeri * 1000000;
             }
-
             for (let i = 0; i < sntSayisi; i++) {
-                let kalanButce = hedefButceGercek - toplamBonservis;
-
-                let uygunSnt = sntListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= kalanButce) 
-                            || sntListesi.filter(o => !secilenler.includes(o)).pop() 
-                            || sntListesi[0];
-                secilenler.push(uygunSnt);
-                toplamBonservis += uygunSnt.piyasaDegeri * 1000000;
-            }
-
-            if (toplamBonservis > hedefButceGercek) {
-                return interaction.editReply({ content: `❌ Belirttiğin **${hedefButceMilyon}M€** bütçeye bu dizilişte sığabilecek en ucuz kadro bile **${(toplamBonservis/1000000).toFixed(1)}M€** tutuyor. Lütfen bütçeyi artır!` });
+                let s = sntListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                secilenler.push(s);
+                toplamBonservis += s.piyasaDegeri * 1000000;
             }
 
             if (kulup.butce < toplamBonservis) {
-                return interaction.editReply({ content: `❌ Kulüp kasanda yeterli para yok! Gereken: **${(toplamBonservis/1000000).toFixed(1)}M€**, Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
+                return interaction.editReply({ content: `❌ Kasan yetersiz! Gereken: **${(toplamBonservis/1000000).toFixed(1)}M€**, Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
@@ -778,365 +778,201 @@ client.on('interactionCreate', async interaction => {
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
-                    .setTitle(`⚡ BÜTÇELİ KADRO ÖNİZLEMESİ (${dizilisStr})`)
-                    .setDescription(`**${kulup.isim}** için ${hedefButceMilyon}M€ bütçeye göre kurulan kadro:\nHarcanan Tutar: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\`\n👉 Reddetmek için: \`/11-reddet\``)
+                    .setTitle(`⚡ KADRO ÖNİZLEMESİ (${dizilisStr})`)
+                    .setDescription(`Tutar: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
                     .setColor('#f1c40f')
                 ]
             });
         }
 
         if (commandName === '11-onayla') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
-                return interaction.reply({ content: '❌ Onay bekleyen bir ilk 11 kadronuz bulunmuyor!', flags: 64 });
-            }
-
+            if (!db.gecici11ler || !db.gecici11ler[user.id]) return interaction.reply({ content: '❌ Onay bekleyen kadro yok!', flags: 64 });
             const veri = db.gecici11ler[user.id];
             const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
 
-            if (!kulup || kulup.butce < veri.toplamMaliyet) {
-                delete db.gecici11ler[user.id];
-                veriyiKaydet();
-                return interaction.reply({ content: '❌ Bütçeniz yetersiz olduğu için işlem iptal edildi.', flags: 64 });
-            }
-
             kulup.butce -= veri.toplamMaliyet;
-            let liste = "";
-            veri.oyuncuIdleri.forEach((id, index) => {
-                const o = db.oyuncular[id];
-                if (o) {
-                    o.takim = kulup.isim;
-                    liste += `**${index + 1}. ${o.name}** (${o.mevki}) - ${o.piyasaDegeri}M€\n`;
-                }
+            veri.oyuncuIdleri.forEach(id => {
+                if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim;
             });
-
             delete db.gecici11ler[user.id];
             veriyiKaydet();
 
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('✅ KADRO ONAYLANDI VE KURULDU!')
-                    .setDescription(`**${kulup.isim}** kadrosu resmen oluşturuldu!\n\n${liste}`)
-                    .setColor('#2ecc71')
-                ]
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO KURULDU!').setColor('#2ecc71')] });
         }
 
         if (commandName === '11-reddet') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
-                return interaction.reply({ content: '❌ Reddedilecek aktif bir önizleme kadronuz yok.', flags: 64 });
-            }
+            if (!db.gecici11ler || !db.gecici11ler[user.id]) return interaction.reply({ content: '❌ Kadro yok.', flags: 64 });
             delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ content: '❌ Otomatik 11 önerisi reddedildi.', flags: 64 });
+            return interaction.reply({ content: '❌ Reddedildi.', flags: 64 });
         }
 
         if (commandName === 'tahmin') {
             const secilenMac = options.getString('mac');
             const skor = options.getString('skor').trim();
-
-            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) {
-                return interaction.reply({ content: '❌ Şu anda bu maç oynanmıyor veya geçerli bir aktif maç seçmediniz!', flags: 64 });
-            }
+            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) return interaction.reply({ content: '❌ Aktif maç değil!', flags: 64 });
 
             if (!db.macTahminleri) db.macTahminleri = {};
-            db.macTahminleri[user.id] = {
-                mac: secilenMac,
-                skor: skor
-            };
+            db.macTahminleri[user.id] = { mac: secilenMac, skor: skor };
             veriyiKaydet();
-
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🎯 TAHMİN KAYDEDİLDİ!')
-                    .setDescription(`**${secilenMac}** karşılaşması için skor tahminin: **${skor}** olarak alındı.\nMaç sonucunu doğru bilirsen kulübüne **+50M€** eklenecek!`)
-                    .setColor('#3498db')
-                ]
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎯 TAHMİN ALINDI').setDescription(`Tahmin: **${skor}**`).setColor('#3498db')] });
         }
 
         if (commandName === 'transfermarkt-kanal-ayarla') {
-            const kanal = options.getChannel('kanal');
-            db.transferKanalId = kanal.id;
+            db.transferKanalId = options.getChannel('kanal').id;
             veriyiKaydet();
-            return interaction.reply({ content: `✅ Transfermarkt duyuru kanalı <#${kanal.id}> olarak ayarlandı!`, flags: 64 });
+            return interaction.reply({ content: '✅ Kanal ayarlandı!', flags: 64 });
         }
 
         if (commandName === 'serbest-birak') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Bir takım bulanamadı!', flags: 64 });
-
-            const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
-            const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi) && f.takim === kulup.isim);
-
-            if (!hedefFutbolcu) return interaction.reply({ content: '❌ Kadronuzda bu isimde bir futbolcu bulunamadı!', flags: 64 });
-
-            hedefFutbolcu.takim = 'Serbest';
+            const oyuncuAdi = options.getString('futbolcu-adi').toLowerCase();
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(oyuncuAdi) && o.takim === kulup.isim);
+            if (!f) return interaction.reply({ content: '❌ Oyuncu bulunamadı!', flags: 64 });
+            f.takim = 'Serbest';
             veriyiKaydet();
-
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🚪 OYUNCU SERBEST BIRAKILDI')
-                    .setDescription(`**${hedefFutbolcu.name}**, **${kulup.isim}** tarafından serbest bırakıldı.`)
-                    .setColor('#e74c3c')
-                ]
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🚪 SERBEST BIRAKILDI').setDescription(`${f.name} serbest kaldı.`).setColor('#e74c3c')] });
         }
 
         if (commandName === 'transfer-teklif') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
-
-            const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
-            const bonservisMilyon = options.getInteger('bonservis');
-            const haftalikMaas = options.getInteger('haftalik-maas');
-            const gercekBonservis = bonservisMilyon * 1000000;
-
-            const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi));
-            if (!hedefFutbolcu) return interaction.reply({ content: '❌ Bu isimde bir futbolcu bulunamadı!', flags: 64 });
-
-            if (kulup.butce < gercekBonservis) {
-                return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
-            }
+            const fAdi = options.getString('futbolcu-adi').toLowerCase();
+            const bons = options.getInteger('bonservis');
+            const maas = options.getInteger('haftalik-maas');
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(fAdi));
+            if (!f) return interaction.reply({ content: '❌ Oyuncu yok.', flags: 64 });
 
             if (!db.transferPazari) db.transferPazari = {};
-            db.transferPazari[hedefFutbolcu.id] = {
-                alanKulup: kulup.isim,
-                bonservis: bonservisMilyon,
-                gercekBonservis: gercekBonservis,
-                maas: haftalikMaas
-            };
+            db.transferPazari[f.id] = { alanKulup: kulup.isim, bonservis: bons, gercekBonservis: bons*1000000, maas: maas };
             veriyiKaydet();
-
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('📩 TRANSFER TEKLİFİ')
-                    .setDescription(`**${hedefFutbolcu.name}** için **${bonservisMilyon}M€** teklif yapıldı.\n\n*(Onaylamak için **/transfer-kabul** yazabilirsin)*`)
-                    .setColor('#3498db')
-                ]
-            });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📩 TEKLİF YAPILDI').setDescription(`${f.name} için ${bons}M€ teklif edildi. Onay için: \`/transfer-kabul\``).setColor('#3498db')] });
         }
 
         if (commandName === 'transfer-kabul') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
+            const fAdi = options.getString('futbolcu-adi').toLowerCase();
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(fAdi));
+            const teklif = db.transferPazari && db.transferPazari[f.id];
+            const tutar = teklif ? teklif.gercekBonservis : f.piyasaDegeri * 1000000;
 
-            const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
-            const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi));
-            if (!hedefFutbolcu) return interaction.reply({ content: '❌ Bu isimde bir futbolcu bulunamadı!', flags: 64 });
+            if (kulup.butce < tutar) return interaction.reply({ content: '❌ Kasa yetersiz!', flags: 64 });
 
-            const teklifBilgisi = db.transferPazari && db.transferPazari[hedefFutbolcu.id];
-            const bonservisMilyon = teklifBilgisi ? teklifBilgisi.bonservis : hedefFutbolcu.piyasaDegeri;
-            const gercekBonservis = teklifBilgisi ? teklifBilgisi.gercekBonservis : (hedefFutbolcu.piyasaDegeri * 1000000);
-            const haftalikMaas = teklifBilgisi ? teklifBilgisi.maas : hedefFutbolcu.maas;
-
-            if (kulup.butce < gercekBonservis) {
-                return interaction.reply({ content: '❌ Kulüp kasasında yeterli bütçe yok!', flags: 64 });
-            }
-
-            kulup.butce -= gercekBonservis;
-            const eskiTakimAdi = hedefFutbolcu.takim;
-            if (eskiTakimAdi !== 'Serbest') {
-                const eskiTakimKey = Object.keys(db.takimlar).find(k => db.takimlar[k].isim === eskiTakimAdi);
-                if (eskiTakimKey) {
-                    db.takimlar[eskiTakimKey].butce += gercekBonservis;
-                }
-            }
-
-            hedefFutbolcu.takim = kulup.isim;
-            hedefFutbolcu.maas = haftalikMaas;
-            
-            if (db.transferPazari && db.transferPazari[hedefFutbolcu.id]) {
-                delete db.transferPazari[hedefFutbolcu.id];
-            }
+            kulup.butce -= tutar;
+            f.takim = kulup.isim;
+            if (teklif) f.maas = teklif.maas;
+            delete db.transferPazari[f.id];
             veriyiKaydet();
 
-            await transferDuyurusuGonder(guild, kulup.isim, hedefFutbolcu.name, bonservisMilyon, haftalikMaas);
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🤝 TRANSFER BAŞARILI!')
-                    .setDescription(`**${hedefFutbolcu.name}** başarıyla **${kulup.isim}** kadrosuna katıldı!`)
-                    .setColor('#2ecc71')
-                ]
-            });
+            await transferDuyurusuGonder(guild, kulup.isim, f.name, tutar/1000000, f.maas);
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setColor('#2ecc71')] });
         }
 
         if (commandName === 'transfer-red') {
-            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
-
-            const futbolcuAdi = options.getString('futbolcu-adi').toLowerCase();
-            const hedefFutbolcu = Object.values(db.oyuncular).find(f => f.name.toLowerCase().includes(futbolcuAdi));
-            
-            if (hedefFutbolcu && db.transferPazari && db.transferPazari[hedefFutbolcu.id]) {
-                delete db.transferPazari[hedefFutbolcu.id];
-                veriyiKaydet();
-            }
-
-            return interaction.reply({
-                embeds: [new EmbedBuilder()
-                    .setTitle('❌ TRANSFER İPTAL EDİLDİ')
-                    .setDescription(`Teklif sonlandırıldı.`)
-                    .setColor('#e74c3c')
-                ]
-            });
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
+            if (f && db.transferPazari) delete db.transferPazari[f.id];
+            veriyiKaydet();
+            return interaction.reply({ content: '❌ Reddedildi.', flags: 64 });
         }
 
         if (commandName === 'kadrom') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı.', flags: 64 });
-
-            const futbolcularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
-            if (futbolcularim.length === 0) return interaction.reply({ content: '❌ Kadronuzda henüz futbolcu yok.', flags: 64 });
+            const oyuncularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
+            if (oyuncularim.length === 0) return interaction.reply({ content: '❌ Kadroda futbolcu yok.', flags: 64 });
 
             let liste = "";
             let toplamMaas = 0;
-            futbolcularim.forEach((f, i) => {
+            oyuncularim.forEach((f, i) => {
                 toplamMaas += f.maas;
-                liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Değer: ${f.piyasaDegeri}M€ | Gol: ${f.gol || 0} | Asist: ${f.asist || 0}\n`;
+                liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Gol: ${f.gol || 0} | Asist: ${f.asist || 0}\n`;
             });
-
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim} (${futbolcularim.length})`).setDescription(liste).addFields({ name: '💸 Toplam Haftalık Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
 
         if (commandName === 'takimlar') {
-            const takimlar = Object.values(db.takimlar);
             let liste = "";
-            takimlar.forEach((t, i) => {
-                const tdBilgi = t.kurucu && t.kurucu !== "Sistem" ? `<@${t.kurucu}>` : "Boşta";
-                liste += `**${i + 1}. ${t.isim}** | T.D: ${tdBilgi} | Kasa: €${t.butce.toLocaleString()}\n`;
+            Object.values(db.takimlar).forEach((t, i) => {
+                liste += `**${i + 1}. ${t.isim}** | Kasa: €${t.butce.toLocaleString()}\n`;
             });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛡️ TAKIMLAR VE BÜTÇELER').setDescription(liste).setColor('#3498db')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛡️ TAKIMLAR').setDescription(liste).setColor('#3498db')] });
         }
 
         if (commandName === 'takim-sec') {
-            const girilenIsim = options.getString('takim-adi').trim().toLowerCase();
-            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenIsim || db.takimlar[k].isim.toLowerCase().includes(girilenIsim));
-            if (!bulunanKey) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
-
-            const secilenTakim = db.takimlar[bulunanKey];
-            secilenTakim.kurucu = String(user.id);
+            const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
+            if (!t) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
+            t.kurucu = String(user.id);
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${secilenTakim.isim}** teknik direktörüsün.`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`${t.isim} teknik direktörüsün.`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'mac-yap') {
-            const evSahibiTakim = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!evSahibiTakim) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
+            const ev = kullanicininTakiminiBulVeyaAta(user.id);
+            const dep = db.takimlar[options.getString('rakip-takim').trim().toLowerCase()];
+            if (!dep) return interaction.reply({ content: '❌ Rakip bulunamadı!', flags: 64 });
 
-            const rakipIsim = options.getString('rakip-takim').trim().toLowerCase();
-            const rakipKey = Object.keys(db.takimlar).find(k => k === rakipIsim || db.takimlar[k].isim.toLowerCase().includes(rakipIsim));
-            if (!rakipKey) return interaction.reply({ content: '❌ Rakip takım bulunamadı!', flags: 64 });
-
-            const deplasmanTakim = db.takimlar[rakipKey];
-            if (evSahibiTakim.isim === deplasmanTakim.isim) return interaction.reply({ content: '❌ Kendi takımınla maç yapamazsın!', flags: 64 });
-
-            await interaction.reply({ content: `⚔️ **${evSahibiTakim.isim}** vs **${deplasmanTakim.isim}** karşılaşması başlatılıyor!` });
-            await tekilCanliMacOyna(channel, evSahibiTakim.isim, deplasmanTakim.isim, guild);
+            await interaction.reply({ content: `⚔️ **${ev.isim} vs ${dep.isim}** maçı başlıyor!` });
+            await tekilCanliMacOyna(channel, ev.isim, dep.isim, guild);
             return;
         }
 
         if (commandName === 'gol-kralligi') {
-            const oyuncular = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
-            if (oyuncular.length === 0) return interaction.reply({ content: 'Henüz gol atan oyuncu yok.', flags: 64 });
-            let liste = "";
-            oyuncular.forEach((o, i) => { liste += `**${i + 1}. ${o.name}** (${o.takim}) - **${o.gol} Gol**\n`; });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(liste).setColor('#e67e22')] });
+            const list = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
+            if (list.length === 0) return interaction.reply({ content: 'Gol atan yok.', flags: 64 });
+            let s = "";
+            list.forEach((o, i) => { s += `**${i+1}. ${o.name}** (${o.takim}) - **${o.gol} Gol**\n`; });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s).setColor('#e67e22')] });
         }
 
         if (commandName === 'gol-sesi-kanal') {
-            const kanal = options.getChannel('kanal');
-            golKanalId = kanal.id;
-            return interaction.reply({ content: `✅ Gol ses kanalı <#${kanal.id}> olarak ayarlandı.`, flags: 64 });
+            golKanalId = options.getChannel('kanal').id;
+            return interaction.reply({ content: '✅ Ses kanalı ayarlandı.', flags: 64 });
         }
 
         if (commandName === 'sponsor') {
-            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı.', flags: 64 });
-            const simdi = Date.now();
-            if (simdi - (kulup.sonSponsor || 0) < 10800000) return interaction.reply({ content: '⏳ Sponsor için süre dolmadı.', flags: 64 });
-
-            const gelir = Math.floor(Math.random() * 5000000) + 3000000;
-            kulup.butce += gelir;
-            kulup.sonSponsor = simdi;
+            const k = kullanicininTakiminiBulVeyaAta(user.id);
+            const gelir = 4000000;
+            k.butce += gelir;
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR GELİRİ!').setDescription(`Kasaya €${gelir.toLocaleString()} eklendi.`).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR').setDescription(`Kasaya €${gelir.toLocaleString()} eklendi.`).setColor('#f1c40f')] });
         }
 
         if (commandName === 'butce') {
-            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takım bulunamadı.', flags: 64 });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe: ${kulup.isim}`).setDescription(`Kasa: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')] });
+            const k = kullanicininTakiminiBulVeyaAta(user.id);
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe`).setDescription(`Kasa: **€${k.butce.toLocaleString()}**`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'butce-ver') {
-            const girilenTakim = options.getString('takim-adi').trim().toLowerCase();
-            const miktarMilyon = options.getInteger('miktar');
-            const eklenenPara = miktarMilyon * 1000000;
-
-            const bulunanKey = Object.keys(db.takimlar).find(k => k === girilenTakim || db.takimlar[k].isim.toLowerCase().includes(girilenTakim));
-            if (!bulunanKey) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
-
-            db.takimlar[bulunanKey].butce += eklenenPara;
+            const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
+            t.butce += options.getInteger('miktar') * 1000000;
             veriyiKaydet();
-
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💰 BÜTÇE EKLENDİ').setDescription(`Takıma €${eklenenPara.toLocaleString()} eklendi!`).setColor('#2ecc71')], flags: 64 });
+            return interaction.reply({ content: '✅ Bütçe eklendi.', flags: 64 });
         }
 
         if (commandName === 'puan-durumu') {
-            const takimlar = Object.values(db.takimlar).sort((a, b) => b.puan - a.puan || b.av - a.av);
-            let liste = "";
-            takimlar.forEach((t, i) => { liste += `**${i + 1}. ${t.isim}** | O: ${t.o} | Puan: ${t.puan}\n`; });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 PUAN DURUMU').setDescription(liste).setColor('#3498db')] });
+            let s = "";
+            Object.values(db.takimlar).sort((a,b)=>b.puan-a.puan).forEach((t,i)=>{ s+=`**${i+1}. ${t.isim}** - Puan: ${t.puan}\n`; });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 PUAN DURUMU').setDescription(s).setColor('#3498db')] });
         }
 
         if (commandName === 'sezon-baslat') {
-            let takimListesi = Object.values(db.takimlar);
-            if (takimListesi.length < 2) return interaction.reply({ content: '❌ En az 2 takım olmalı!', flags: 64 });
-
             db.sezonAktif = true;
             veriyiKaydet();
-            await interaction.reply({ content: `🚀 **SEZON BAŞLADI!** Maçlar oynanıyor.` });
-
-            for (let i = 0; i < takimListesi.length; i++) {
-                for (let j = i + 1; j < takimListesi.length; j++) {
-                    if (!db.sezonAktif) break;
-                    const ev = takimListesi[i].isim;
-                    const dep = takimListesi[j].isim;
-
-                    await channel.send(`📢 **MAÇ:** **${ev} vs ${dep}**`);
-                    const sonuc = await tekilCanliMacOyna(channel, ev, dep, guild);
-                    if (!sonuc) break;
-                    await new Promise(r => setTimeout(r, 4000));
-                }
-                if (!db.sezonAktif) break;
-            }
-
-            if (db.sezonAktif) {
-                db.sezonAktif = false;
-                veriyiKaydet();
-                await channel.send(`🎉 **SEZON TAMAMLANDI!**`);
-            }
+            return interaction.reply({ content: '🚀 Sezon başlatıldı.' });
         }
 
         if (commandName === 'sezon-durdur') {
             db.sezonAktif = false;
-            db.aktifMaclar = {};
             veriyiKaydet();
-            return interaction.reply({ content: '🛑 Sezon ve devam eden maçlar durduruldu!', flags: 64 });
+            return interaction.reply({ content: '🛑 Durduruldu.', flags: 64 });
         }
 
         if (commandName === 'lig-sifirla') {
-            Object.values(db.takimlar).forEach(t => {
-                t.puan = 0; t.av = 0; t.o = 0; t.g = 0; t.b = 0; t.m = 0;
-            });
-            db.sezonAktif = false;
-            db.aktifMaclar = {};
+            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; });
             veriyiKaydet();
-            return interaction.reply({ content: '🔄 Lig sıfırlandı.', flags: 64 });
+            return interaction.reply({ content: '🔄 Sıfırlandı.', flags: 64 });
         }
 
     } catch (err) {
-        console.error('Komut hatası:', err);
+        console.error(err);
     }
 });
 
