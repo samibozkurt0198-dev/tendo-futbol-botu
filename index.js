@@ -49,6 +49,7 @@ let db = {
     transferKanalId: null,
     hosgeldinKanalId: null,
     sponsorKanalId: null,
+    botCalistirmaKanalId: null, // Botun sadece çalışacağı kanal ID'si
     otomatikSezonVerisi: null
 };
 
@@ -66,6 +67,7 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
         if (dosyaVerisi.hosgeldinKanalId) db.hosgeldinKanalId = dosyaVerisi.hosgeldinKanalId;
         if (dosyaVerisi.sponsorKanalId) db.sponsorKanalId = dosyaVerisi.sponsorKanalId;
+        if (dosyaVerisi.botCalistirmaKanalId) db.botCalistirmaKanalId = dosyaVerisi.botCalistirmaKanalId;
         if (dosyaVerisi.otomatikSezonVerisi) db.otomatikSezonVerisi = dosyaVerisi.otomatikSezonVerisi;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
@@ -345,6 +347,12 @@ function kullanicininTakiminiBulVeyaAta(userId) {
 }
 
 const commands = [
+    new SlashCommandBuilder()
+        .setName('bot-kanal-ayarla')
+        .setDescription('Botun sadece çalışacağı ana komut kanalını ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Bot Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder()
         .setName('twitter')
         .setDescription('Sunucuda Twitter (X) formatında mesaj gönderir.')
@@ -808,10 +816,26 @@ client.on('interactionCreate', async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
+    const { commandName, options, user, channel, guild, member } = interaction;
+
+    // --- BOT ÇALIŞTIRMA KANALI KONTROLÜ ---
+    if (commandName !== 'bot-kanal-ayarla' && db.botCalistirmaKanalId && channel.id !== db.botCalistirmaKanalId) {
+        return interaction.reply({ 
+            content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> kanalında kullanabilirsin!`, 
+            flags: 64 
+        });
+    }
+    // -------------------------------------
+
     try {
-        const { commandName, options, user, channel, guild, member } = interaction;
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
+
+        if (commandName === 'bot-kanal-ayarla') {
+            db.botCalistirmaKanalId = options.getChannel('kanal').id;
+            veriyiKaydet();
+            return interaction.reply({ content: '✅ Botun komut çalıştırma kanalı başarıyla ayarlandı!', flags: 64 });
+        }
 
         if (commandName === 'twitter') {
             const mesaj = options.getString('mesaj');
