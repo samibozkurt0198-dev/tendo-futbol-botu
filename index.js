@@ -336,7 +336,6 @@ function kullanicininTakiminiBulVeyaAta(userId) {
     let bul = Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
     if (bul) return bul;
 
-    // Otomatik takım atama mantığı hatalara yol açtığı için kaldırıldı.
     return null;
 }
 
@@ -569,7 +568,7 @@ const olaylar = [
     { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
     { metin: "{dakika}' - 📐 **KORNER!** {hücum} köşe vuruşu kazandı, tehlikeli orta geliyor.", tip: "normal" },
     { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, direkten döndü!", tip: "normal" },
-    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" },
+    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "sari_kart" },
     { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} takımında **{oyuncu}** acımasızca kaydı ve hakem doğrudan kırmızı kart gösterdi!", tip: "kirmizi_kart" },
     { metin: "{dakika}' - 🚑 **SAKATLIK!** {hücum} oyuncusu **{oyuncu}** acı içinde yerde kaldı ve kenara oyundan alındı.", tip: "sakatlik" }
 ];
@@ -720,20 +719,30 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
                 return;
             }
 
+            // DÜZENLENEN KISIM: Kırmızı Kart ve Sakatlık Oranları Düşürüldü
             let secilenOlay;
             const sans = Math.random();
-            if (sans < 0.18) { 
+
+            if (sans < 0.15) { 
+                // %15 İhtimalle Gol
                 const goller = olaylar.filter(o => o.tip === "gol");
                 secilenOlay = goller[Math.floor(Math.random() * goller.length)];
+            } else if (sans < 0.17) { 
+                // %2 İhtimalle Sakatlık
+                secilenOlay = olaylar.find(o => o.tip === "sakatlik");
+            } else if (sans < 0.18) { 
+                // %1 İhtimalle Kırmızı Kart
+                secilenOlay = olaylar.find(o => o.tip === "kirmizi_kart");
             } else { 
-                const normaller = olaylar.filter(o => o.tip !== "gol");
+                // %82 İhtimalle Normal Maç İçi Olay (Şut, Kurtarış, Korner, Sarı Kart vb.)
+                const normaller = olaylar.filter(o => o.tip === "normal" || o.tip === "sari_kart");
                 secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
             }
 
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
             
-            let golAtan = futbolcuSecPozisyonaGore(hucumTakim, secilenOlay.tip === "kirmizi_kart" ? "normal" : "gol");
+            let golAtan = futbolcuSecPozisyonaGore(hucumTakim, (secilenOlay.tip === "kirmizi_kart" || secilenOlay.tip === "sari_kart") ? "normal" : "gol");
             let asistYapan = futbolcuSecPozisyonaGore(hucumTakim, "asist", golAtan.id);
             if (asistYapan.name === golAtan.name) {
                 asistYapan = { name: "Orta Saha Oyuncusu", mevki: "OS" };
