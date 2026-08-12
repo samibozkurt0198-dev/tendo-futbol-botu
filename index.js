@@ -731,7 +731,6 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply({ content: `❌ Yeterli serbest oyuncu yok!` });
             }
 
-            // Bütçenin %95 - %99'unu hedefleme mantığı
             const minHedefBonservis = hedefButceGercek * 0.95;
             const maxHedefBonservis = hedefButceGercek * 0.99;
 
@@ -748,7 +747,6 @@ client.on('interactionCreate', async interaction => {
                 return arr[Math.floor(Math.random() * arr.length)];
             }
 
-            // Doğru bütçe aralığını tutturmak için 1500 kez deneme yapar
             for (let deneme = 0; deneme < 1500; deneme++) {
                 let secilenler = [];
                 let toplamBonservis = 0;
