@@ -1,4 +1,4 @@
-const { 
+Const { 
     Client, 
     GatewayIntentBits, 
     SlashCommandBuilder, 
@@ -338,6 +338,12 @@ function kullanicininTakiminiBulVeyaAta(userId) {
 }
 
 const commands = [
+    // YENİ EKLENEN TWİTTER KOMUTU
+    new SlashCommandBuilder()
+        .setName('twitter')
+        .setDescription('Sunucuda Twitter (X) formatında mesaj gönderir.')
+        .addStringOption(opt => opt.setName('mesaj').setDescription('Tweet içeriği').setRequired(true)),
+
     new SlashCommandBuilder()
         .setName('kayıt')
         .setDescription('Bir kullanıcıyı kayıt eder ve adını günceller.')
@@ -695,7 +701,6 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
     veriyiKaydet();
 }
 
-// Dengeli Fikstür Mantığı (Aynı maçların üst üste binmesini önler)
 async function otomatikUcluSezonBaslat(channel, takimlarListesi, guild) {
     db.otomatikSezonVerisi = { durduruldu: false, oynananMac: 0 };
     veriyiKaydet();
@@ -758,9 +763,29 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        const { commandName, options, user, channel, guild } = interaction;
+        const { commandName, options, user, channel, guild, member } = interaction;
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
+
+        // 🐦 TWİTTER KOMUTU İŞLEYİCİSİ
+        if (commandName === 'twitter') {
+            const mesaj = options.getString('mesaj');
+            const displayName = member ? member.displayName : user.username;
+            const username = user.username;
+            const avatarURL = user.displayAvatarURL({ dynamic: true });
+
+            const twitterEmbed = new EmbedBuilder()
+                .setColor(0x000000)
+                .setAuthor({
+                    name: `${displayName} (@${username})`,
+                    iconURL: avatarURL
+                })
+                .setDescription(mesaj)
+                .setFooter({ text: 'Twitter • Discord Entegrasyonu' })
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [twitterEmbed] });
+        }
 
         if (commandName === 'kayıt') {
             const hedefUye = options.getMember('kullanici');
@@ -1086,7 +1111,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === '3-takimli-sezon') {
-            // Discord'un 3 saniye zaman aşımı (Uygulama yanıt vermedi) hatasını önler
             await interaction.deferReply();
 
             const t1Isim = options.getString('takim1').trim();
