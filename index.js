@@ -58,8 +58,8 @@ let db = {
 if (fs.existsSync(DB_FILE)) {
     try {
         const dosyaVerisi = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (dosyaVerisi.oyuncular && Object.keys(dosyaVerisi.oyuncular).length > 0) db.oyuncular = dosyaVerisi.oyuncular;
-        if (dosyaVerisi.takimlar && Object.keys(dosyaVerisi.takimlar).length > 0) db.takimlar = dosyaVerisi.takimlar;
+        if (dosyaVerisi.oyuncular) db.oyuncular = dosyaVerisi.oyuncular;
+        if (dosyaVerisi.takimlar) db.takimlar = dosyaVerisi.takimlar;
         if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
         if (dosyaVerisi.gecici11ler) db.gecici11ler = dosyaVerisi.gecici11ler;
         if (dosyaVerisi.macTahminleri) db.macTahminleri = dosyaVerisi.macTahminleri;
@@ -527,7 +527,7 @@ const commands = [
 const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
 const rest = new REST({ version: '10' }).setToken(token);
 
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
     otomatikTakimlariVeFutbolculariYukle();
 
@@ -896,9 +896,8 @@ async function otomatikSezonBaslatGenel(channel, guild) {
 }
 
 client.on('interactionCreate', async interaction => {
-    // ------------------- BUTTON HANDLER (YENİ EKLENDİ) -------------------
     if (interaction.isButton()) {
-        const userId = interaction.user.id;
+        const userId = String(interaction.user.id);
         if (interaction.customId === 'onayla_11') {
             const veri = db.gecici11ler && db.gecici11ler[userId];
             if (!veri) {
@@ -1225,13 +1224,12 @@ client.on('interactionCreate', async interaction => {
             if (enIyiSecimler.length < 11) return interaction.editReply({ content: '❌ Bu bütçeye uygun kadro bulunamadı.' });
 
             if (!db.gecici11ler) db.gecici11ler = {};
-            db.gecici11ler[user.id] = { takimIsmi: kulup.isim, oyuncuIdleri: enIyiSecimler.map(o => o.id), toplamMaliyet: enIyiMaliyet, dizilis: dizilisStr };
+            db.gecici11ler[String(user.id)] = { takimIsmi: kulup.isim, oyuncuIdleri: enIyiSecimler.map(o => o.id), toplamMaliyet: enIyiMaliyet, dizilis: dizilisStr };
             veriyiKaydet();
 
             let liste = "";
             enIyiSecimler.forEach((o, i) => { liste += `${i+1}. ${o.name} (${o.mevki}) - ${o.piyasaDegeri}M€\n`; });
 
-            // Butonlu Onay Ekranı (Interactive Buttons)
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('onayla_11').setLabel('✅ Kadroyu Onayla').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('reddet_11').setLabel('❌ İptal Et').setStyle(ButtonStyle.Danger)
@@ -1244,7 +1242,8 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === '11-onayla') {
-            const veri = db.gecici11ler && db.gecici11ler[user.id];
+            const userIdStr = String(user.id);
+            const veri = db.gecici11ler && db.gecici11ler[userIdStr];
             if (!veri) return interaction.reply({ content: '❌ Onay bekleyen kadro bulunamadı.', flags: 64 });
             const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
 
@@ -1253,13 +1252,14 @@ client.on('interactionCreate', async interaction => {
 
             kulup.butce -= veri.toplamMaliyet;
             veri.oyuncuIdleri.forEach(id => { if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim; });
-            delete db.gecici11ler[user.id];
+            delete db.gecici11ler[userIdStr];
             veriyiKaydet();
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO BAŞARIYLA KURULDU!').setDescription(`Oyuncular **${kulup.isim}** takımınıza eklendi. Kalan Kasa: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')] });
         }
 
         if (commandName === '11-reddet') {
-            if (db.gecici11ler && db.gecici11ler[user.id]) delete db.gecici11ler[user.id];
+            const userIdStr = String(user.id);
+            if (db.gecici11ler && db.gecici11ler[userIdStr]) delete db.gecici11ler[userIdStr];
             veriyiKaydet();
             return interaction.reply({ content: '❌ Teklif reddedildi ve temizlendi.', flags: 64 });
         }
@@ -1370,23 +1370,33 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'takim-sec') {
             const takimAdiInput = options.getString('takim-adi').trim();
-            const key = takimAdiInput.toLowerCase();
+            const targetKey = takimAdiInput.toLowerCase();
             const userIdStr = String(user.id);
 
-            // Kullanıcının daha önceden seçmiş olduğu eski takımları temizle
+            // 1. Kullanıcının daha önceden almış olduğu başka bir takım varsa onun kuruculuğunu kaldır
             Object.values(db.takimlar).forEach(t => {
                 if (t.kurucu && String(t.kurucu).trim() === userIdStr) {
                     t.kurucu = null;
                 }
             });
 
-            if (!db.takimlar[key]) {
-                db.takimlar[key] = { isim: takimAdiInput, kurucu: userIdStr, puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, butce: 150000000, sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 };
+            // 2. Hedef takım daha önce açılmamışsa oluştur, açılmışsa kurucusunu yeni kullanıcı yap
+            if (!db.takimlar[targetKey]) {
+                db.takimlar[targetKey] = { 
+                    isim: takimAdiInput, 
+                    kurucu: userIdStr, 
+                    puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, 
+                    butce: 150000000, 
+                    sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 
+                };
             } else {
-                db.takimlar[key].kurucu = userIdStr;
+                db.takimlar[targetKey].kurucu = userIdStr;
             }
+
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Tebrikler <@${user.id}>, **${db.takimlar[key].isim}** takımının Teknik Direktörü oldun!`).setColor('#2ecc71')] });
+            return interaction.reply({ 
+                embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Tebrikler <@${user.id}>, **${db.takimlar[targetKey].isim}** takımının Teknik Direktörü oldun!`).setColor('#2ecc71')] 
+            });
         }
 
         if (commandName === 'mac-yap') {
