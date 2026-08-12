@@ -11,12 +11,7 @@ const {
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
 const fs = require('fs');
-const mongoose = require('mongoose');
 require('dotenv').config();
-
-mongoose.connect('mongodb+srv://samibozkurt8198_db_user:LdVdNvRgWjv3bf6J@cluster0.f2fkykj.mongodb.net/?appName=Cluster0')
-  .then(() => console.log('MongoDB veritabanına başarıyla bağlanıldı!'))
-  .catch((err) => console.error('Bağlantı hatası:', err));
 
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -345,7 +340,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Belirttiğin bütçeyi asssla aşmayan kadro önizlemesi oluşturur.')
+        .setDescription('Belirttiğin bütçeyi asla aşmayan kadro önizlemesi oluşturur.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
         .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe üst sınırı (Milyon €)').setRequired(true)),
 
@@ -733,13 +728,11 @@ client.on('interactionCreate', async interaction => {
             const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
 
-            // Bütçeyi kesinlikle aşmayacak şekilde ucuzdan pahalıya akıllı filtreleme
             const uygunSerbestler = serbestler.filter(o => (o.piyasaDegeri * 1000000) <= hedefButceGercek);
             if (uygunSerbestler.length < 11) {
                 return interaction.editReply({ content: `❌ Bu bütçeye (${hedefButceMilyon}M€) uygun yeterli serbest oyuncu bulunamadı. Bütçeyi biraz artırmayı dene!` });
             }
 
-            // En yüksek değerli ama bütçe sınırını geçmeyen oyuncuları seçmek için bütçeye en yakın olanları sıralıyoruz
             const siraliSerbestler = uygunSerbestler.sort((a, b) => (b.piyasaDegeri) - (a.piyasaDegeri));
 
             const klListesi = siraliSerbestler.filter(o => o.mevki === 'KL');
@@ -770,7 +763,6 @@ client.on('interactionCreate', async interaction => {
                 toplamBonservis += s.piyasaDegeri * 1000000;
             }
 
-            // Kesin güvenlik kontrolü: Eğer hesap hatasıyla yine aşarsa en pahalıdan başlayarak ucuzlarıyla değiştir veya hata ver
             if (toplamBonservis > hedefButceGercek) {
                 return interaction.editReply({ content: `❌ Seçilen bütçeye (${hedefButceMilyon}M€) tam uydurulamadı, toplam maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** oldu. Lütfen biraz daha yüksek bütçe gir!` });
             }
