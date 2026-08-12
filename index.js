@@ -40,9 +40,11 @@ let db = {
     transferPazari: {},
     gecici11ler: {},
     macTahminleri: {},
+    kullanilanTahminler: {},
     aktifMaclar: {},
     sezonAktif: false,
-    transferKanalId: null
+    transferKanalId: null,
+    otomatikSezonVerisi: null
 };
 
 if (fs.existsSync(DB_FILE)) {
@@ -53,9 +55,11 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
         if (dosyaVerisi.gecici11ler) db.gecici11ler = dosyaVerisi.gecici11ler;
         if (dosyaVerisi.macTahminleri) db.macTahminleri = dosyaVerisi.macTahminleri;
+        if (dosyaVerisi.kullanilanTahminler) db.kullanilanTahminler = dosyaVerisi.kullanilanTahminler;
         if (dosyaVerisi.aktifMaclar) db.aktifMaclar = dosyaVerisi.aktifMaclar;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
+        if (dosyaVerisi.otomatikSezonVerisi) db.otomatikSezonVerisi = dosyaVerisi.otomatikSezonVerisi;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
     }
@@ -406,7 +410,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('tahmin')
-        .setDescription('Maçlar için skor tahmini yaparsınız (+50M€ ödüllü).')
+        .setDescription('Maç başladıktan sonra skor tahmini yaparsınız (Maç başına sadece 1 kez).')
         .addStringOption(opt => opt.setName('mac').setDescription('Tahmin yapılacak maç').setRequired(true).setAutocomplete(true))
         .addStringOption(opt => opt.setName('skor').setDescription('Örn: 3-1').setRequired(true)),
 
@@ -447,9 +451,24 @@ const commands = [
         .setDescription('Canlı maç yaparsınız.')
         .addStringOption(opt => opt.setName('rakip-takim').setDescription('Rakip takım adı').setRequired(true)),
 
+    new SlashCommandBuilder()
+        .setName('3-takimli-sezon')
+        .setDescription('3 takımlı, 10 maçlık otomatik özel sezon başlatır.')
+        .addStringOption(opt => opt.setName('takim1').setDescription('1. Takım Adı (Örn: Galatasaray)').setRequired(true))
+        .addUserOption(opt => opt.setName('td1').setDescription('1. Takımın Teknik Direktörü').setRequired(true))
+        .addStringOption(opt => opt.setName('takim2').setDescription('2. Takım Adı (Örn: Beşiktaş)').setRequired(true))
+        .addUserOption(opt => opt.setName('td2').setDescription('2. Takımın Teknik Direktörü').setRequired(true))
+        .addStringOption(opt => opt.setName('takim3').setDescription('3. Takım Adı (Örn: Real Madrid)').setRequired(true))
+        .addUserOption(opt => opt.setName('td3').setDescription('3. Takımın Teknik Direktörü').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('mac-durdur')
+        .setDescription('Devam eden otomatik 3 takımlı sezonu veya maçları durdurur.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
-    new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
+    new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir. (/kadrom kullanılır)').
     new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
     
@@ -610,13 +629,19 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
         veriyiKaydet();
 
         const baslangicEmbed = new EmbedBuilder()
-            .setTitle(`🎙️ MAÇ | ${macAdi}`)
-            .setDescription(`Karşılaşma hakemin düdüğüyle başladı! \`/tahmin\` komutu ile bu maç için skor tahmininde bulunabilirsiniz!`)
+            .setTitle(`🎙️ MAÇ BAŞLADI | ${macAdi}`)
+            .setDescription(`Karşılaşma hakemin düdüğüyle başladı! Şimdi \`/tahmin\` komutunu kullanarak bu maç için **tek bir kez** skor tahmininde bulunabilirsiniz!`)
             .setColor('#e74c3c');
 
         await channel.send({ embeds: [baslangicEmbed] }).catch(() => {});
 
         const macInterval = setInterval(async () => {
+            if (db.otomatikSezonVerisi && db.otomatikSezonVerisi.durduruldu) {
+                clearInterval(macInterval);
+                resolve(false);
+                return;
+            }
+
             mevcutDakika += Math.floor(Math.random() * 4) + 3;
 
             if (mevcutDakika >= 45 && !ilkYariBitti && mevcutDakika < 90) {
@@ -710,6 +735,45 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
         tDep.puan += 1; tDep.b++;
         tEv.butce += 1000000; tDep.butce += 1000000;
     }
+    veriyiKaydet();
+}
+
+async function otomatikUcluSezonBaslat(channel, takimlarListesi, guild) {
+    db.otomatikSezonVerisi = { durduruldu: false, oynananMac: 0 };
+    veriyiKaydet();
+
+    await channel.send({ embeds: [new EmbedBuilder().setTitle('🏆 3 TAKIMLI ÖZEL SEZON BAŞLADI!').setDescription(`Takımlar: **${takimlarListesi.map(t => t.isim).join(', ')}**\nToplam **10 Maçlık** heyecan başlıyor!`).setColor('#9b59b6')] });
+
+    for (let i = 1; i <= 10; i++) {
+        if (!db.otomatikSezonVerisi || db.otomatikSezonVerisi.durduruldu) break;
+
+        let evIdx = Math.floor(Math.random() * takimlarListesi.length);
+        let depIdx;
+        do {
+            depIdx = Math.floor(Math.random() * takimlarListesi.length);
+        } while (depIdx === evIdx);
+
+        let evTakim = takimlarListesi[evIdx].isim;
+        let depTakim = takimlarListesi[depIdx].isim;
+
+        await channel.send(`📌 **Sezon Maçı ${i} / 10**`);
+        let tamamlandi = await tekilCanliMacOyna(channel, evTakim, depTakim, guild);
+        if (!tamamlandi) break;
+
+        if (i < 10) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+
+    if (db.otomatikSezonVerisi && !db.otomatikSezonVerisi.durduruldu) {
+        let puanSiralamasi = [...takimlarListesi].map(t => db.takimlar[t.isim.toLowerCase()]).sort((a, b) => b.puan - a.puan || b.av - a.av);
+        let sonucMetni = `🏆 **3 TAKIMLI SEZON SONA ERDİ!**\n\n`;
+        puanSiralamasi.forEach((t, index) => {
+            sonucMetni += `**${index + 1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o} (G: ${t.g}, B: ${t.b}, M: ${t.m})\n`;
+        });
+        await channel.send({ embeds: [new EmbedBuilder().setTitle('🥇 SEZON FİNALİ VE ŞAMPİYON').setDescription(sonucMetni).setColor('#f1c40f')] });
+    }
+    db.otomatikSezonVerisi = null;
     veriyiKaydet();
 }
 
@@ -930,12 +994,22 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'tahmin') {
             const secilenMac = options.getString('mac');
             const skor = options.getString('skor').trim();
-            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) return interaction.reply({ content: '❌ Aktif maç değil!', flags: 64 });
+
+            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) {
+                return interaction.reply({ content: '❌ Bu maç şu an oynanmıyor veya henüz başlamadı! Tahmin sadece maç başladıktan sonra yapılabilir.', flags: 64 });
+            }
+
+            if (!db.kullanilanTahminler) db.kullanilanTahminler = {};
+            if (db.kullanilanTahminler[user.id]) {
+                return interaction.reply({ content: '❌ Bu maç için tahmin hakkınızı zaten kullandınız! Her maç için yalnızca **1 kez** tahmin yapabilirsiniz.', flags: 64 });
+            }
 
             if (!db.macTahminleri) db.macTahminleri = {};
             db.macTahminleri[user.id] = { mac: secilenMac, skor: skor };
+            db.kullanilanTahminler[user.id] = true;
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎯 TAHMİN ALINDI').setDescription(`Tahmin: **${skor}**`).setColor('#3498db')] });
+
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎯 TAHMİN ALINDI').setDescription(`Tahmininiz (**${skor}**) başarıyla kaydedildi. Maç sonunda doğru çıkarsa ödül kasanıza eklenecek!`).setColor('#3498db')] });
         }
 
         if (commandName === 'transfermarkt-kanal-ayarla') {
@@ -997,7 +1071,7 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'kadrom') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
             const oyuncularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
-            if (oyuncularim.length === 0) return interaction.reply({ content: '❌ Kadroda futbolcu yok.', flags: 64 });
+            if (oyuncularim.length === 0) return interaction.reply({ content: '❌ Kadroda futbolcu yok. \`/oto-ilk11\` komutu ile kadro kurabilirsin.', flags: 64 });
 
             let liste = "";
             let toplamMaas = 0;
@@ -1005,38 +1079,102 @@ client.on('interactionCreate', async interaction => {
                 toplamMaas += f.maas;
                 liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Gol: ${f.gol || 0} | Asist: ${f.asist || 0}\n`;
             });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADRO | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADROM | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
 
         if (commandName === 'takimlar') {
             let liste = "";
             Object.values(db.takimlar).forEach((t, i) => {
-                liste += `**${i + 1}. ${t.isim}** | Kasa: €${t.butce.toLocaleString()}\n`;
+                liste += `**${i + 1}. ${t.isim}** | T.D: ${t.kurucu ? `<@${t.kurucu}>` : 'Boş'} | Kasa: €${t.butce.toLocaleString()}\n`;
             });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛡️ TAKIMLAR').setDescription(liste).setColor('#3498db')] });
         }
 
         if (commandName === 'takim-sec') {
-            const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
-            if (!t) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
-            t.kurucu = String(user.id);
+            const takimAdiInput = options.getString('takim-adi').trim();
+            const key = takimAdiInput.toLowerCase();
+            if (!db.takimlar[key]) {
+                db.takimlar[key] = {
+                    isim: takimAdiInput,
+                    kurucu: String(user.id),
+                    puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0,
+                    butce: 150000000, sonSponsor: 0
+                };
+            } else {
+                db.takimlar[key].kurucu = String(user.id);
+            }
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`${t.isim} teknik direktörüsün.`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${db.takimlar[key].isim}** takımının Teknik Direktörüsün!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'mac-yap') {
             const ev = kullanicininTakiminiBulVeyaAta(user.id);
             const dep = db.takimlar[options.getString('rakip-takim').trim().toLowerCase()];
-            if (!dep) return interaction.reply({ content: '❌ Rakip bulunamadı!', flags: 64 });
+            if (!dep) return interaction.reply({ content: '❌ Rakip takım bulunamadı!', flags: 64 });
+
+            db.kullanilanTahminler = {}; // Yeni maç için tahmin sıfırla
+            veriyiKaydet();
 
             await interaction.reply({ content: `⚔️ **${ev.isim} vs ${dep.isim}** maçı başlıyor!` });
             await tekilCanliMacOyna(channel, ev.isim, dep.isim, guild);
             return;
         }
 
+        if (commandName === '3-takimli-sezon') {
+            const t1Isim = options.getString('takim1').trim();
+            const td1Uye = options.getUser('td1');
+            const t2Isim = options.getString('takim2').trim();
+            const td2Uye = options.getUser('td2');
+            const t3Isim = options.getString('takim3').trim();
+            const td3Uye = options.getUser('td3');
+
+            const takimlarVerisi = [
+                { isim: t1Isim, td: td1Uye },
+                { isim: t2Isim, td: td2Uye },
+                { isim: t3Isim, td: td3Uye }
+            ];
+
+            takimlarVerisi.forEach(tv => {
+                const k = tv.isim.toLowerCase();
+                if (!db.takimlar[k]) {
+                    db.takimlar[k] = {
+                        isim: tv.isim,
+                        kurucu: String(tv.td.id),
+                        puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0,
+                        butce: 150000000, sonSponsor: 0
+                    };
+                } else {
+                    db.takimlar[k].kurucu = String(tv.td.id);
+                    db.takimlar[k].puan = 0;
+                    db.takimlar[k].av = 0;
+                    db.takimlar[k].o = 0;
+                    db.takimlar[k].g = 0;
+                    db.takimlar[k].b = 0;
+                    db.takimlar[k].m = 0;
+                }
+            });
+            veriyiKaydet();
+
+            db.kullanilanTahminler = {};
+            veriyiKaydet();
+
+            await interaction.reply({ content: `🚀 **3 Takımlı Özel Sezon** başlatıldı! Toplam 10 maç arka arkaya oynanacak.` });
+            await otomatikUcluSezonBaslat(channel, takimlarVerisi, guild);
+            return;
+        }
+
+        if (commandName === 'mac-durdur') {
+            if (db.otomatikSezonVerisi) {
+                db.otomatikSezonVerisi.durduruldu = true;
+            }
+            db.aktifMaclar = {};
+            veriyiKaydet();
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛑 MAÇLAR / SEZON DURDURULDU').setDescription('Devam eden tüm otomatik maçlar ve sezon durduruldu.').setColor('#e74c3c')] });
+        }
+
         if (commandName === 'gol-kralligi') {
             const list = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
-            if (list.length === 0) return interaction.reply({ content: 'Gol atan yok.', flags: 64 });
+            if (list.length === 0) return interaction.reply({ content: 'Gol atan oyuncu yok.', flags: 64 });
             let s = "";
             list.forEach((o, i) => { s += `**${i+1}. ${o.name}** (${o.takim}) - **${o.gol} Gol**\n`; });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s).setColor('#e67e22')] });
@@ -1062,6 +1200,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'butce-ver') {
             const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
+            if (!t) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
             t.butce += options.getInteger('miktar') * 1000000;
             veriyiKaydet();
             return interaction.reply({ content: '✅ Bütçe eklendi.', flags: 64 });
@@ -1069,7 +1208,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'puan-durumu') {
             let s = "";
-            Object.values(db.takimlar).sort((a,b)=>b.puan-a.puan).forEach((t,i)=>{ s+=`**${i+1}. ${t.isim}** - Puan: ${t.puan}\n`; });
+            Object.values(db.takimlar).sort((a,b)=>b.puan-a.puan || b.av-a.av).forEach((t,i)=>{ s+=`**${i+1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o}\n`; });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 PUAN DURUMU').setDescription(s).setColor('#3498db')] });
         }
 
@@ -1086,12 +1225,14 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'lig-sifirla') {
-            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; });
+            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; t.g=0; t.b=0; t.m=0; });
+            db.kullanilanTahminler = {};
+            db.aktifMaclar = {};
             veriyiKaydet();
-            return interaction.reply({ content: '🔄 Sıfırlandı.', flags: 64 });
+            return interaction.reply({ content: '🔄 Lig ve istatistikler sıfırlandı.', flags: 64 });
         }
 
-    } catch (err) {
+    } typings => {} catch (err) {
         console.error(err);
     }
 });
