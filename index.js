@@ -44,6 +44,7 @@ let db = {
     aktifMaclar: {},
     sezonAktif: false,
     transferKanalId: null,
+    transferKanalAyarlaId: null,
     hosgeldinKanalId: null,
     sponsorKanalId: null,
     botCalistirmaKanalId: null,
@@ -62,6 +63,7 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.aktifMaclar) db.aktifMaclar = dosyaVerisi.aktifMaclar;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
+        if (dosyaVerisi.transferKanalAyarlaId) db.transferKanalAyarlaId = dosyaVerisi.transferKanalAyarlaId;
         if (dosyaVerisi.hosgeldinKanalId) db.hosgeldinKanalId = dosyaVerisi.hosgeldinKanalId;
         if (dosyaVerisi.sponsorKanalId) db.sponsorKanalId = dosyaVerisi.sponsorKanalId;
         if (dosyaVerisi.botCalistirmaKanalId) db.botCalistirmaKanalId = dosyaVerisi.botCalistirmaKanalId;
@@ -362,6 +364,12 @@ const commands = [
             sub.setName('kaldır')
                .setDescription('Kanal kısıtlamasını kaldırır, bot her kanalda kullanılabilir.')
         ),
+
+    new SlashCommandBuilder()
+        .setName('transfer-kanal-ayarla')
+        .setDescription('Transfer işlemlerinin yapılabileceği özel kanalı ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Transfer Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder()
         .setName('twitter')
@@ -900,11 +908,23 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName, options, user, channel, guild, member } = interaction;
 
+    // Transfer Komutları Kanal Kontrolü
+    const transferKomutlari = ['transfer-teklif', 'transfer-kabul', 'transfer-red', 'serbest-birak', 'futbolcu-havuzu'];
+    if (transferKomutlari.includes(commandName) && db.transferKanalAyarlaId) {
+        if (channel.id !== db.transferKanalAyarlaId) {
+            return interaction.reply({
+                content: `❌ Transfer işlemleri sadece <#${db.transferKanalAyarlaId}> kanalında yapılabilir!`,
+                flags: 64
+            });
+        }
+    }
+
+    // Genel Bot Kanal Kontrolü
     const isBotChannel = db.botCalistirmaKanalId && channel.id === db.botCalistirmaKanalId;
     const isSponsorChannel = db.sponsorKanalId && channel.id === db.sponsorKanalId;
 
-    if (commandName !== 'bot-kanal' && commandName !== 'sponsor-kanal-ayarla') {
-        if (db.botCalistirmaKanalId && !isBotChannel && !isSponsorChannel) {
+    if (commandName !== 'bot-kanal' && commandName !== 'sponsor-kanal-ayarla' && commandName !== 'transfer-kanal-ayarla') {
+        if (db.botCalistirmaKanalId && !isBotChannel && !isSponsorChannel && !transferKomutlari.includes(commandName)) {
             return interaction.reply({ 
                 content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> veya <#${db.sponsorKanalId || 'belirlenen sponsor'}> kanalında kullanabilirsin!`, 
                 flags: 64 
@@ -928,6 +948,13 @@ client.on('interactionCreate', async interaction => {
                 veriyiKaydet();
                 return interaction.reply({ content: `✅ Kanal kısıtlaması kaldırıldı!`, flags: 64 });
             }
+        }
+
+        if (commandName === 'transfer-kanal-ayarla') {
+            const secilenKanal = options.getChannel('kanal');
+            db.transferKanalAyarlaId = secilenKanal.id;
+            veriyiKaydet();
+            return interaction.reply({ content: `✅ Transfer komutlarının kullanılacağı kanal başarıyla ${secilenKanal} olarak ayarlandı!`, flags: 64 });
         }
 
         if (commandName === 'twitter') {
