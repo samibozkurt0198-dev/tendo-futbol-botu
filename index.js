@@ -695,29 +695,37 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
     veriyiKaydet();
 }
 
+// Dengeli Fikstür Mantığı (Aynı maçların üst üste binmesini önler)
 async function otomatikUcluSezonBaslat(channel, takimlarListesi, guild) {
     db.otomatikSezonVerisi = { durduruldu: false, oynananMac: 0 };
     veriyiKaydet();
 
-    await channel.send({ embeds: [new EmbedBuilder().setTitle('🏆 3 TAKIMLI ÖZEL SEZON BAŞLADI!').setDescription(`Takımlar: **${takimlarListesi.map(t => t.isim).join(', ')}**\nToplam **10 Maçlık** heyecan başlıyor!`).setColor('#9b59b6')] });
+    await channel.send({ embeds: [new EmbedBuilder().setTitle('🏆 3 TAKIMLI ÖZEL SEZON BAŞLADI!').setDescription(`Takımlar: **${takimlarListesi.map(t => t.isim).join(', ')}**\nToplam **10 Maçlık** dengeli fikstür başlıyor!`).setColor('#9b59b6')] });
 
-    for (let i = 1; i <= 10; i++) {
+    let fikstur = [];
+    for (let i = 0; i < takimlarListesi.length; i++) {
+        for (let j = 0; j < takimlarListesi.length; j++) {
+            if (i !== j) {
+                fikstur.push({ ev: takimlarListesi[i].isim, dep: takimlarListesi[j].isim });
+            }
+        }
+    }
+    fikstur.sort(() => Math.random() - 0.5);
+
+    let macListesi = [];
+    for (let i = 0; i < 10; i++) {
+        macListesi.push(fikstur[i % fikstur.length]);
+    }
+
+    for (let i = 0; i < macListesi.length; i++) {
         if (!db.otomatikSezonVerisi || db.otomatikSezonVerisi.durduruldu) break;
 
-        let evIdx = Math.floor(Math.random() * takimlarListesi.length);
-        let depIdx;
-        do {
-            depIdx = Math.floor(Math.random() * takimlarListesi.length);
-        } while (depIdx === evIdx);
-
-        let evTakim = takimlarListesi[evIdx].isim;
-        let depTakim = takimlarListesi[depIdx].isim;
-
-        await channel.send(`📌 **Sezon Maçı ${i} / 10**`);
-        let tamamlandi = await tekilCanliMacOyna(channel, evTakim, depTakim, guild);
+        let mac = macListesi[i];
+        await channel.send(`📌 **Sezon Maçı ${i + 1} / 10**`);
+        let tamamlandi = await tekilCanliMacOyna(channel, mac.ev, mac.dep, guild);
         if (!tamamlandi) break;
 
-        if (i < 10) {
+        if (i < 9) {
             await new Promise(resolve => setTimeout(resolve, 5000));
         }
     }
@@ -1078,6 +1086,9 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === '3-takimli-sezon') {
+            // Discord'un 3 saniye zaman aşımı (Uygulama yanıt vermedi) hatasını önler
+            await interaction.deferReply();
+
             const t1Isim = options.getString('takim1').trim();
             const td1Uye = options.getUser('td1');
             const t2Isim = options.getString('takim2').trim();
@@ -1115,7 +1126,7 @@ client.on('interactionCreate', async interaction => {
             db.kullanilanTahminler = {};
             veriyiKaydet();
 
-            await interaction.reply({ content: `🚀 **3 Takımlı Özel Sezon** başlatıldı! Toplam 10 maç arka arkaya oynanacak.` });
+            await interaction.editReply({ content: `🚀 **3 Takımlı Özel Sezon** başlatıldı! Toplam 10 maç arka arkaya oynanacak.` });
             await otomatikUcluSezonBaslat(channel, takimlarVerisi, guild);
             return;
         }
