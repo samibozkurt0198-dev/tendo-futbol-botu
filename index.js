@@ -14,7 +14,6 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-// MongoDB Bağlantısı (Senin Cluster Adresin)
 mongoose.connect('mongodb+srv://samibozkurt8198_db_user:LdVdNvRgWjv3bf6J@cluster0.f2fkykj.mongodb.net/?appName=Cluster0')
   .then(() => console.log('MongoDB veritabanına başarıyla bağlanıldı!'))
   .catch((err) => console.error('Bağlantı hatası:', err));
@@ -84,7 +83,6 @@ const UNLU_TAKIMLAR = [
 ];
 
 const GUNCEL_FUTBOLCULAR = [
-    // --- MEVCUT YILDIZLAR ---
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
     { isim: "Jude Bellingham", mevki: "OS", deger: 160 },
@@ -213,8 +211,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Emre Demir", mevki: "OS", deger: 2 },
     { isim: "Yasin Özcan", mevki: "STP", deger: 4 },
     { isim: "Mehmet Aydın", mevki: "DF", deger: 3 },
-
-    // --- EKSTRA 50+ YENİ DÜNYA YILDIZI VE FUTBOLCU ---
     { isim: "Lionel Messi", mevki: "KANAT", deger: 30 },
     { isim: "Cristiano Ronaldo", mevki: "SNT", deger: 15 },
     { isim: "Neymar Jr", mevki: "KANAT", deger: 45 },
@@ -257,7 +253,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Benjamin Pavard", mevki: "STP", deger: 40 },
     { isim: "Federico Dimarco", mevki: "DF", deger: 50 },
     { isim: "Denzel Dumfries", mevki: "DF", deger: 25 },
-    { isim: "Hakan Çalhanoğlu", mevki: "OS", deger: 45 },
     { isim: "Adrien Rabiot", mevki: "OS", deger: 35 },
     { isim: "Teun Koopmeiners", mevki: "OS", deger: 50 },
     { isim: "Douglas Luiz", mevki: "OS", deger: 55 },
@@ -725,6 +720,11 @@ client.on('interactionCreate', async interaction => {
             const dizilisStr = options.getString('dizilis');
             const hedefButceMilyon = options.getInteger('butce');
             const hedefButceGercek = hedefButceMilyon * 1000000;
+
+            if (kulup.butce < hedefButceGercek) {
+                return interaction.editReply({ content: `❌ Kasan bu bütçeye yetmiyor! Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
+            }
+
             const parcalar = dizilisStr.split('-').map(Number);
             if (parcalar.length !== 3 || parcalar[0] + parcalar[1] + parcalar[2] !== 10) {
                 return interaction.editReply({ content: '❌ Hatalı diziliş! Örn: `4-3-3`' });
@@ -732,16 +732,21 @@ client.on('interactionCreate', async interaction => {
 
             const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
-            const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
-            const sntListesi = serbestler.filter(o => o.mevki === 'SNT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+
+            const ortalamaHedefBons = hedefButceGercek / 11;
+            const siraliSerbestler = serbestler.sort((a, b) => Math.abs((a.piyasaDegeri * 1000000) - ortalamaHedefBons) - Math.abs((b.piyasaDegeri * 1000000) - ortalamaHedefBons));
+
+            const klListesi = siraliSerbestler.filter(o => o.mevki === 'KL');
+            const dfListesi = siraliSerbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
+            const osListesi = siraliSerbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
+            const sntListesi = siraliSerbestler.filter(o => o.mevki === 'SNT');
 
             let secilenler = [];
             let toplamBonservis = 0;
 
-            secilenler.push(klListesi[0] || serbestler[0]);
-            toplamBonservis += secilenler[0].piyasaDegeri * 1000000;
+            let secilenKl = klListesi[0] || serbestler[0];
+            secilenler.push(secilenKl);
+            toplamBonservis += secilenKl.piyasaDegeri * 1000000;
 
             for (let i = 0; i < defSayisi; i++) {
                 let d = dfListesi.find(o => !secilenler.includes(o)) || serbestler[0];
@@ -759,8 +764,8 @@ client.on('interactionCreate', async interaction => {
                 toplamBonservis += s.piyasaDegeri * 1000000;
             }
 
-            if (kulup.butce < toplamBonservis) {
-                return interaction.editReply({ content: `❌ Kasan yetersiz! Gereken: **${(toplamBonservis/1000000).toFixed(1)}M€**, Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
+            if (toplamBonservis > hedefButceGercek) {
+                return interaction.editReply({ content: `❌ Seçtiğin bütçeye (${hedefButceMilyon}M€) uygun oyuncu bulunamadı, toplam maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** tuttu. Biraz daha yüksek bütçe dene!` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
@@ -780,7 +785,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setTitle(`⚡ KADRO ÖNİZLEMESİ (${dizilisStr})`)
-                    .setDescription(`Tutar: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
+                    .setDescription(`Toplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
                     .setColor('#f1c40f')
                 ]
             });
