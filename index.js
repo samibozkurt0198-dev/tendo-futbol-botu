@@ -294,8 +294,13 @@ function otomatikTakimlariVeFutbolculariYukle() {
                 b: 0,
                 m: 0,
                 butce: 150000000,
-                sonSponsor: 0
+                sonSponsor: 0,
+                sonAntrenman: 0,
+                krediBorc: 0
             };
+        } else {
+            if (db.takimlar[key].sonAntrenman === undefined) db.takimlar[key].sonAntrenman = 0;
+            if (db.takimlar[key].krediBorc === undefined) db.takimlar[key].krediBorc = 0;
         }
     });
 
@@ -369,7 +374,9 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('takvim')
-        .setDescription('Sunucudaki aktif maçları ve lig takvimini görüntüler.'),
+        .setDescription('Sunucudaki aktif maçları ve lig takvimini görüntüler.')
+        .addSubcommand(sub => sub.setName('goster').setDescription('Lig takvimini ve butonları gösterir.'))
+        .addSubcommand(sub => sub.setName('sezon-baslat').setDescription('Takvim üzerinden lig sezonunu başlatır.')),
 
     new SlashCommandBuilder()
         .setName('hosgeldin-kanal-ayarla')
@@ -456,24 +463,39 @@ const commands = [
     new SlashCommandBuilder()
         .setName('3-takimli-sezon')
         .setDescription('3 takımlı, 10 maçlık otomatik özel sezon başlatır.')
-        .addStringOption(opt => opt.setName('takim1').setDescription('1. Takım Adı (Örn: Galatasaray)').setRequired(true))
-        .addUserOption(opt => opt.setName('td1').setDescription('1. Takımın Teknik Direktörü').setRequired(true))
-        .addStringOption(opt => opt.setName('takim2').setDescription('2. Takım Adı (Örn: Beşiktaş)').setRequired(true))
-        .addUserOption(opt => opt.setName('td2').setDescription('2. Takımın Teknik Direktörü').setRequired(true))
-        .addStringOption(opt => opt.setName('takim3').setDescription('3. Takım Adı (Örn: Real Madrid)').setRequired(true))
-        .addUserOption(opt => opt.setName('td3').setDescription('3. Takımın Teknik Direktörü').setRequired(true)),
+        .addStringOption(opt => opt.setName('takim1').setDescription('1. Takım Adı').setRequired(true))
+        .addUserOption(opt => opt.setName('td1').setDescription('1. Takımın T.D.').setRequired(true))
+        .addStringOption(opt => opt.setName('takim2').setDescription('2. Takım Adı').setRequired(true))
+        .addUserOption(opt => opt.setName('td2').setDescription('2. Takımın T.D.').setRequired(true))
+        .addStringOption(opt => opt.setName('takim3').setDescription('3. Takım Adı').setRequired(true))
+        .addUserOption(opt => opt.setName('td3').setDescription('3. Takımın T.D.').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('mac-durdur')
-        .setDescription('Devam eden otomatik 3 takımlı sezonu veya maçları durdurur.')
+        .setDescription('Devam eden otomatik sezonu veya maçları durdurur.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
-    new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız (Sadece sponsor kanalında).'),
+    new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
     
+    new SlashCommandBuilder()
+        .setName('antrenman')
+        .setDescription('Kadronuzdan bir oyuncuyu antrenmana sokarak değer ve gol/asist oranını artırır.')
+        .addStringOption(opt => opt.setName('futbolcu-adi').setDescription('Antrenman yapacak futbolcunun adı').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('kredi-cek')
+        .setDescription('Kulübünüz için %10 faizle kredi çekersiniz.')
+        .addIntegerOption(opt => opt.setName('miktar').setDescription('Çekilecek miktar (Milyon €)').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('kredi-ode')
+        .setDescription('Kredi borcunuzu ödersiniz.')
+        .addIntegerOption(opt => opt.setName('miktar').setDescription('Ödenecek miktar (Milyon €)').setRequired(true)),
+
     new SlashCommandBuilder()
         .setName('butce-ver')
         .setDescription('Takıma bütçe ekler (Yönetici).')
@@ -485,7 +507,7 @@ const commands = [
         .addChannelOption(opt => opt.setName('kanal').setDescription('Ses Kanalı').addChannelTypes(ChannelType.GuildVoice).setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
-    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Lig sezonunu başlatır.')
+    new SlashCommandBuilder().setName('sezon-baslat').setDescription('Lig sezonunu başlatır (En az 5 takım gerekir).')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     new SlashCommandBuilder().setName('sezon-durdur').setDescription('Lig sezonunu durdurur.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
@@ -738,7 +760,28 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
     });
 }
 
-function istatistikGuncelle(ev, dep, evSkor, depSkor) {
+function krediBorcunuDusVeyaHacizUygula(t, channel) {
+    if (t.krediBorc && t.krediBorc > 0) {
+        if (t.butce >= t.krediBorc) {
+            t.butce -= t.krediBorc;
+            t.krediBorc = 0;
+            if (channel) channel.send(`🏦 **KREDİ ÖDENDİ:** ${t.isim} kulübü maç gelirinden kredi borcunun tamamını kapattı!`).catch(()=>{});
+        } else {
+            t.krediBorc -= t.butce;
+            t.butce = 0;
+            let takimOyunculari = Object.values(db.oyuncular).filter(o => o.takim === t.isim);
+            if (takimOyunculari.length > 0) {
+                takimOyunculari.sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
+                let satilan = takimOyunculari[0];
+                satilan.takim = 'Serbest';
+                t.butce += satilan.piyasaDegeri * 1000000;
+                if (channel) channel.send(`🚨 **HACİZ GELDİ!** ${t.isim} kulübü kredi borcunu ödeyemediği için **${satilan.name}** adlı oyuncusunu zorunlu olarak serbest bırakıp satışa çıkardı!`).catch(()=>{});
+            }
+        }
+    }
+}
+
+function istatistikGuncelle(ev, dep, evSkor, depSkor, channel) {
     let keyEv = ev.toLowerCase();
     let keyDep = dep.toLowerCase();
     if (!db.takimlar[keyEv] || !db.takimlar[keyDep]) return;
@@ -755,56 +798,58 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
         tEv.butce += 2000000;
     } else if (depSkor > evSkor) {
         tDep.puan += 3; tDep.g++; tEv.m++;
-        tEv.butce += 2000000;
+        tDep.butce += 2000000;
     } else {
         tEv.puan += 1; tEv.b++;
         tDep.puan += 1; tDep.b++;
         tEv.butce += 1000000; tDep.butce += 1000000;
     }
+
+    krediBorcunuDusVeyaHacizUygula(tEv, channel);
+    krediBorcunuDusVeyaHacizUygula(tDep, channel);
+
     veriyiKaydet();
 }
 
-async function otomatikUcluSezonBaslat(channel, takimlarListesi, guild) {
-    db.otomatikSezonVerisi = { durduruldu: false, oynananMac: 0 };
+async function otomatikSezonBaslatGenel(channel, guild) {
+    let aktifTakimlar = Object.values(db.takimlar).filter(t => t.kurucu && t.kurucu !== "Sistem");
+    if (aktifTakimlar.length < 5) {
+        return channel.send({ embeds: [new EmbedBuilder().setTitle('❌ SEZON BAŞLATILAMADI').setDescription('Lig sezonunu başlatabilmek için en az **5 takımın** sahibi (Teknik Direktörü) olmalıdır!').setColor('#e74c3c')] });
+    }
+
+    db.otomatikSezonVerisi = { durduruldu: false };
     veriyiKaydet();
 
-    await channel.send({ embeds: [new EmbedBuilder().setTitle('🏆 3 TAKIMLI ÖZEL SEZON BAŞLADI!').setDescription(`Takımlar: **${takimlarListesi.map(t => t.isim).join(', ')}**\nToplam **10 Maçlık** dengeli fikstür başlıyor!`).setColor('#9b59b6')] });
+    await channel.send({ embeds: [new EmbedBuilder().setTitle('🏆 TENDO LİGİ SEZONU BAŞLADI!').setDescription(`Ligdeki aktif **${aktifTakimlar.length} takım** ile maçlar başlıyor!`).setColor('#9b59b6')] });
 
     let fikstur = [];
-    for (let i = 0; i < takimlarListesi.length; i++) {
-        for (let j = 0; j < takimlarListesi.length; j++) {
+    for (let i = 0; i < aktifTakimlar.length; i++) {
+        for (let j = 0; j < aktifTakimlar.length; j++) {
             if (i !== j) {
-                fikstur.push({ ev: takimlarListesi[i].isim, dep: takimlarListesi[j].isim });
+                fikstur.push({ ev: aktifTakimlar[i].isim, dep: aktifTakimlar[j].isim });
             }
         }
     }
     fikstur.sort(() => Math.random() - 0.5);
 
-    let macListesi = [];
-    for (let i = 0; i < 10; i++) {
-        macListesi.push(fikstur[i % fikstur.length]);
-    }
-
-    for (let i = 0; i < macListesi.length; i++) {
+    for (let i = 0; i < fikstur.length; i++) {
         if (!db.otomatikSezonVerisi || db.otomatikSezonVerisi.durduruldu) break;
 
-        let mac = macListesi[i];
-        await channel.send(`📌 **Sezon Maçı ${i + 1} / 10**`);
+        let mac = fikstur[i];
+        await channel.send(`📌 **Lig Maçı ${i + 1} / ${fikstur.length}**`);
         let tamamlandi = await tekilCanliMacOyna(channel, mac.ev, mac.dep, guild);
         if (!tamamlandi) break;
 
-        if (i < 9) {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     if (db.otomatikSezonVerisi && !db.otomatikSezonVerisi.durduruldu) {
-        let puanSiralamasi = [...takimlarListesi].map(t => db.takimlar[t.isim.toLowerCase()]).sort((a, b) => b.puan - a.puan || b.av - a.av);
-        let sonucMetni = `🏆 **3 TAKIMLI SEZON SONA ERDİ!**\n\n`;
+        let puanSiralamasi = [...aktifTakimlar].map(t => db.takimlar[t.isim.toLowerCase()]).sort((a, b) => b.puan - a.puan || b.av - a.av);
+        let sonucMetni = `🏆 **LİG SEZONU SONA ERDİ! ŞAMPİYON: ${puanSiralamasi[0].isim}**\n\n`;
         puanSiralamasi.forEach((t, index) => {
-            sonucMetni += `**${index + 1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o} (G: ${t.g}, B: ${t.b}, M: ${t.m})\n`;
+            sonucMetni += `**${index + 1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o}\n`;
         });
-        await channel.send({ embeds: [new EmbedBuilder().setTitle('🥇 SEZON FİNALİ VE ŞAMPİYON').setDescription(sonucMetni).setColor('#f1c40f')] });
+        await channel.send({ embeds: [new EmbedBuilder().setTitle('🥇 SEZON FİNALİ VE TABLO').setDescription(sonucMetni).setColor('#f1c40f')] });
     }
     db.otomatikSezonVerisi = null;
     veriyiKaydet();
@@ -845,106 +890,148 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'bot-kanal') {
             const sub = options.getSubcommand();
-            
             if (sub === 'ayarla') {
                 const secilenKanal = options.getChannel('kanal');
                 db.botCalistirmaKanalId = secilenKanal.id;
                 veriyiKaydet();
                 return interaction.reply({ content: `✅ Botun komut çalıştırma kanalı başarıyla ${secilenKanal} olarak ayarlandı!`, flags: 64 });
-            } 
-            
-            else if (sub === 'kaldır') {
-                if (!db.botCalistirmaKanalId) {
-                    return interaction.reply({ content: `ℹ️ Zaten aktif bir kanal kısıtlaması yok, bot şu an tüm kanallarda çalışabiliyor!`, flags: 64 });
-                }
-                
+            } else if (sub === 'kaldır') {
                 db.botCalistirmaKanalId = null;
                 veriyiKaydet();
-                return interaction.reply({ content: `✅ Kanal kısıtlaması başarıyla kaldırıldı! Bot artık sunucudaki **tüm kanallarda** serbestçe kullanılabilir.`, flags: 64 });
+                return interaction.reply({ content: `✅ Kanal kısıtlaması kaldırıldı!`, flags: 64 });
             }
         }
 
         if (commandName === 'twitter') {
             const mesaj = options.getString('mesaj');
             const displayName = member ? member.displayName : user.username;
-            const username = user.username;
-            const avatarURL = user.displayAvatarURL({ dynamic: true });
-
             const twitterEmbed = new EmbedBuilder()
                 .setColor(0x000000)
-                .setAuthor({
-                    name: `${displayName} (@${username})`,
-                    iconURL: avatarURL
-                })
+                .setAuthor({ name: `${displayName} (@${user.username})`, iconURL: user.displayAvatarURL({ dynamic: true }) })
                 .setDescription(mesaj)
                 .setFooter({ text: 'Twitter • Discord Entegrasyonu' })
                 .setTimestamp();
-
             return interaction.reply({ embeds: [twitterEmbed] });
         }
 
         if (commandName === 'rehber') {
             const rehberEmbed = new EmbedBuilder()
                 .setTitle('📖 TENDO LİGİ - OYUN REHBERİ')
-                .setDescription('Sunucumuzda nasıl teknik direktör olacağını ve ligde nasıl ilerleyeceğini öğrenmek için aşağıdaki adımları inceleyebilirsin!')
                 .addFields(
-                    { name: '1️⃣ Takım Seçimi', value: '`/takim-sec` komutu ile boşta olan bir kulübü seçerek direkt teknik direktör koltuğuna oturabilirsin.' },
-                    { name: '2️⃣ Kadro Kurulumu', value: '`/oto-ilk11` komutunu kullanarak kasandaki bütçeyle hızlıca harika bir 11 dizebilirsin.' },
-                    { name: '3️⃣ Maç Tahminleri', value: 'Canlı oynanan maçlarda `/tahmin` komutunu kullanarak skor bilebilir ve kulübüne ekstra **+50M€** kazandırabilirsin.' },
-                    { name: '4️⃣ Finans & Sponsor', value: '`/sponsor` komutuyla (yalnızca sponsor kanalında) düzenli **20M€** gelir elde edebilir, `/butce` komutuyla kasanı kontrol edebilirsin.' }
+                    { name: '1️⃣ Takım & Kadro', value: '`/takim-sec` ile takım seçip, `/oto-ilk11` ile kadro kurabilirsin.' },
+                    { name: '2️⃣ Antrenman', value: '`/antrenman` ile oyuncularını 1 saatte 1 geliştirip değerini artırabilirsin.' },
+                    { name: '3️⃣ Banka / Kredi', value: '`/kredi-cek` ile %10 faizle nakit çekebilir, ödemezsen haciz gelebilir!' },
+                    { name: '4️⃣ Takvim & Sezon', value: '`/takvim` üzerinden sezonu başlatabilirsin (En az 5 takım gerekir).' }
                 )
-                .setColor('#3498db')
-                .setFooter({ text: 'Tendo Bot Futbol Simülasyonu' });
-
+                .setColor('#3498db');
             return interaction.reply({ embeds: [rehberEmbed] });
         }
 
         if (commandName === 'takvim') {
-            const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
-            let aciklama = "";
-
-            if (aktifler.length > 0) {
-                aciklama += `🔴 **Şu An Canlı Oynanan Maçlar:**\n`;
-                aktifler.forEach(mac => {
-                    aciklama += `• ${mac}\n`;
-                });
-                aciklama += `\n`;
-            } else {
-                aciklama += `🟢 Şu an canlı oynanan aktif bir maç bulunmuyor.\n\n`;
+            const sub = options.getSubcommand ? options.getSubcommand() : 'goster';
+            if (sub === 'sezon-baslat') {
+                await interaction.deferReply();
+                await otomatikSezonBaslatGenel(channel, guild);
+                return;
             }
 
-            aciklama += `📅 **Lig Takvimi & Bilgiler:**\n`;
-            aciklama += `• Maçlar \`/mac-yap\` veya \`/3-takimli-sezon\` komutlarıyla başlatılır.\n`;
-            aciklama += `• Devam eden maçlar için \`/tahmin\` komutunu kullanabilirsin.\n`;
+            const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
+            let aciklama = "";
+            if (aktifler.length > 0) {
+                aciklama += `🔴 **Canlı Maçlar:**\n`;
+                aktifler.forEach(mac => { aciklama += `• ${mac}\n`; });
+                aciklama += `\n`;
+            } else {
+                aciklama += `🟢 Şu an canlı maç yok.\n\n`;
+            }
+            aciklama += `📅 Komutlar:\n• \`/takvim sezon-baslat\` ile lig sezonunu başlatabilirsiniz (En az 5 takım gerekir).\n`;
 
             const takvimEmbed = new EmbedBuilder()
                 .setTitle('⚽ TENDO LİGİ - MAÇ TAKVİMİ')
                 .setDescription(aciklama)
-                .setColor('#2ecc71')
-                .setTimestamp();
+                .setColor('#2ecc71');
 
             return interaction.reply({ embeds: [takvimEmbed] });
+        }
+
+        if (commandName === 'antrenman') {
+            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Önce bir takım seçmelisin!', flags: 64 });
+
+            const simdi = Date.now();
+            const birSaat = 60 * 60 * 1000;
+            if (kulup.sonAntrenman && (simdi - kulup.sonAntrenman < birSaat)) {
+                const kalanDakika = Math.ceil((birSaat - (simdi - kulup.sonAntrenman)) / (60 * 1000));
+                return interaction.reply({ content: `⏳ Antrenman için **${kalanDakika} dakika** beklemelisin!`, flags: 64 });
+            }
+
+            const oyuncuAdi = options.getString('futbolcu-adi').toLowerCase();
+            const oyuncu = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(oyuncuAdi) && o.takim === kulup.isim);
+            if (!oyuncu) return interaction.reply({ content: '❌ Kadronuzda böyle bir oyuncu bulunamadı!', flags: 64 });
+
+            oyuncu.piyasaDegeri = Math.round((oyuncu.piyasaDegeri * 1.03) * 10) / 10;
+            oyuncu.gol = (oyuncu.gol || 0) + (Math.random() < 0.3 ? 1 : 0);
+            oyuncu.asist = (oyuncu.asist || 0) + (Math.random() < 0.3 ? 1 : 0);
+
+            kulup.sonAntrenman = simdi;
+            veriyiKaydet();
+
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏋️ ANTRENMAN BAŞARILI!').setDescription(`**${oyuncu.name}** antrenmana katıldı!\n📈 Yeni Piyasa Değeri: **${oyuncu.piyasaDegeri}M€**`).setColor('#2ecc71')] });
+        }
+
+        if (commandName === 'kredi-cek') {
+            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Önce takım seçmelisin!', flags: 64 });
+
+            const miktarMilyon = options.getInteger('miktar');
+            if (miktarMilyon <= 0) return interaction.reply({ content: '❌ Geçerli bir miktar girin.', flags: 64 });
+
+            const gercekMiktar = miktarMilyon * 1000000;
+            const geriOdeme = Math.round(gercekMiktar * 1.10);
+
+            kulup.butce += gercekMiktar;
+            kulup.krediBorc = (kulup.krediBorc || 0) + geriOdeme;
+            veriyiKaydet();
+
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏦 KREDİ ÇEKİLDİ').setDescription(`Kasanıza **+${miktarMilyon}M€** eklendi.\n📊 Toplam Borç (%10 faizle): **€${kulup.krediBorc.toLocaleString()}**`).setColor('#f1c40f')] });
+        }
+
+        if (commandName === 'kredi-ode') {
+            const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok.', flags: 64 });
+
+            const miktarMilyon = options.getInteger('miktar');
+            const gercekMiktar = miktarMilyon * 1000000;
+
+            if (kulup.butce < gercekMiktar) return interaction.reply({ content: '❌ Kasanızda bu kadar para yok!', flags: 64 });
+            if (!kulup.krediBorc || kulup.krediBorc <= 0) return interaction.reply({ content: 'ℹ️ Bankaya ödenmesi gereken borcunuz bulunmuyor.', flags: 64 });
+
+            let odenecek = Math.min(gercekMiktar, kulup.krediBorc);
+            kulup.butce -= odenecek;
+            kulup.krediBorc -= odenecek;
+            veriyiKaydet();
+
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💳 KREDİ ÖDENDİ').setDescription(`Borçtan **€${odenecek.toLocaleString()}** ödendi.\nKalan Borç: **€${kulup.krediBorc.toLocaleString()}**`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'hosgeldin-kanal-ayarla') {
             db.hosgeldinKanalId = options.getChannel('kanal').id;
             veriyiKaydet();
-            return interaction.reply({ content: '✅ Hoş geldin karşılama kanalı başarıyla ayarlandı!', flags: 64 });
+            return interaction.reply({ content: '✅ Hoş geldin kanalı ayarlandı!', flags: 64 });
         }
 
         if (commandName === 'sponsor-kanal-ayarla') {
             db.sponsorKanalId = options.getChannel('kanal').id;
             veriyiKaydet();
-            return interaction.reply({ content: '✅ Sponsor komutu kanalı başarıyla ayarlandı!', flags: 64 });
+            return interaction.reply({ content: '✅ Sponsor kanalı ayarlandı!', flags: 64 });
         }
 
         if (commandName === 'kayıt') {
             const hedefUye = options.getMember('kullanici');
             const yeniIsim = options.getString('isim');
             const yas = options.getInteger('yas');
-            if (!hedefUye) return interaction.reply({ content: '❌ Geçerli bir kullanıcı belirtmelisin!', flags: 64 });
             await hedefUye.setNickname(`${yeniIsim} | ${yas}`);
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ BAŞARILI KAYIT').setDescription(`**${hedefUye.user.tag}** kayıt edildi!`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KAYIT BAŞARILI').setDescription(`**${hedefUye.user.tag}** kayıt edildi!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'futbolcu-havuzu') {
@@ -952,205 +1039,110 @@ client.on('interactionCreate', async interaction => {
             const oyuncular = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             const limit = 20;
             const maxSayfa = Math.ceil(oyuncular.length / limit) || 1;
-            if (sayfa < 1 || sayfa > maxSayfa) return interaction.reply({ content: `❌ 1 ile ${maxSayfa} arası sayfa girin.`, flags: 64 });
-
             const baslangic = (sayfa - 1) * limit;
-            const listeSlices = oyuncular.slice(baslangic, baslangic + limit);
             let liste = "";
-            listeSlices.forEach((f, i) => {
+            oyuncular.slice(baslangic, baslangic + limit).forEach((f, i) => {
                 liste += `**${baslangic + i + 1}. ${f.name}** | ${f.mevki} | Değer: **${f.piyasaDegeri}M€**\n`;
             });
-
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`📋 TRANSFER HAVUZU (${sayfa}/${maxSayfa})`).setDescription(liste).setColor('#3498db')] });
         }
 
         if (commandName === 'oto-ilk11') {
             await interaction.deferReply();
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.editReply({ content: '❌ Takım bulunamadı!' });
-
             const dizilisStr = options.getString('dizilis');
             const hedefButceMilyon = options.getInteger('butce');
             const hedefButceGercek = hedefButceMilyon * 1000000;
 
-            if (kulup.butce < hedefButceGercek) {
-                return interaction.editReply({ content: `❌ Kasan bu bütçeye yetmiyor! Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
-            }
-
+            if (kulup.butce < hedefButceGercek) return interaction.editReply({ content: '❌ Kasa yetersiz!' });
             const parcalar = dizilisStr.split('-').map(Number);
-            if (parcalar.length !== 3 || parcalar[0] + parcalar[1] + parcalar[2] !== 10) {
-                return interaction.editReply({ content: '❌ Hatalı diziliş! Örn: `4-3-3`' });
-            }
-
-            const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
 
-            if (serbestler.length < 11) {
-                return interaction.editReply({ content: `❌ Yeterli serbest oyuncu yok!` });
-            }
-
-            const minHedefBonservis = hedefButceGercek * 0.95;
-            const maxHedefBonservis = hedefButceGercek * 0.99;
+            if (serbestler.length < 11) return interaction.editReply({ content: '❌ Yeterli serbest oyuncu yok!' });
 
             let enIyiSecimler = [];
             let enIyiMaliyet = 0;
-            let enYakinFark = Infinity;
 
             const klListesi = serbestler.filter(o => o.mevki === 'KL');
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
             const sntListesi = serbestler.filter(o => o.mevki === 'SNT');
 
-            function rastgeleSec(arr) {
-                return arr[Math.floor(Math.random() * arr.length)];
-            }
-
-            for (let deneme = 0; deneme < 1500; deneme++) {
+            for (let deneme = 0; deneme < 1000; deneme++) {
                 let secilenler = [];
                 let toplamBonservis = 0;
+                let seciliset = new Set();
 
-                let secilenKl = rastgeleSec(klListesi.length > 0 ? klListesi : serbestler);
-                secilenler.push(secilenKl);
-                toplamBonservis += secilenKl.piyasaDegeri * 1000000;
+                function rastgeleSec(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+                let kl = rastgeleSec(klListesi.length ? klListesi : serbestler);
+                secilenler.push(kl); seciliset.add(kl.id);
+                toplamBonservis += kl.piyasaDegeri * 1000000;
 
                 let basarili = true;
-                const seciliset = new Set([secilenKl.id]);
-
-                function oyuncuSec(liste) {
-                    let havuz = liste.length > 0 ? liste : serbestler;
-                    let filtrelenmis = havuz.filter(o => !seciliset.has(o.id));
-                    if (filtrelenmis.length === 0) filtrelenmis = serbestler.filter(o => !seciliset.has(o.id));
-                    if (filtrelenmis.length === 0) return null;
-                    let o = rastgeleSec(filtrelenmis);
-                    seciliset.add(o.id);
-                    return o;
-                }
-
-                for (let i = 0; i < defSayisi; i++) {
-                    let d = oyuncuSec(dfListesi);
-                    if (!d) { basarili = false; break; }
-                    secilenler.push(d);
-                    toplamBonservis += d.piyasaDegeri * 1000000;
-                }
-                if (!basarili) continue;
-
-                for (let i = 0; i < osSayisi; i++) {
-                    let o = oyuncuSec(osListesi);
-                    if (!o) { basarili = false; break; }
-                    secilenler.push(o);
-                    toplamBonservis += o.piyasaDegeri * 1000000;
-                }
-                if (!basarili) continue;
-
-                for (let i = 0; i < sntSayisi; i++) {
-                    let s = oyuncuSec(sntListesi);
-                    if (!s) { basarili = false; break; }
-                    secilenler.push(s);
-                    toplamBonservis += s.piyasaDegeri * 1000000;
-                }
-                if (!basarili) continue;
-
-                if (toplamBonservis <= hedefButceGercek) {
-                    let fark = hedefButceGercek - toplamBonservis;
-                    if (toplamBonservis >= minHedefBonservis && toplamBonservis <= maxHedefBonservis) {
-                        enIyiSecimler = secilenler;
-                        enIyiMaliyet = toplamBonservis;
-                        break;
+                function ekle(liste, adet) {
+                    for(let i=0; i<adet; i++) {
+                        let havuz = (liste.length ? liste : serbestler).filter(o => !seciliset.has(o.id));
+                        if(!havuz.length) { basarili = false; break; }
+                        let o = rastgeleSec(havuz);
+                        seciliset.add(o.id);
+                        secilenler.push(o);
+                        toplamBonservis += o.piyasaDegeri * 1000000;
                     }
-                    if (fark < enYakinFark) {
-                        enYakinFark = fark;
-                        enIyiSecimler = secilenler;
-                        enIyiMaliyet = toplamBonservis;
-                    }
+                }
+
+                ekle(dfListesi, parcalar[0]);
+                ekle(osListesi, parcalar[1]);
+                ekle(sntListesi, parcalar[2]);
+
+                if (basarili && toplamBonservis <= hedefButceGercek) {
+                    enIyiSecimler = secilenler;
+                    enIyiMaliyet = toplamBonservis;
+                    break;
                 }
             }
 
-            if (enIyiSecimler.length < 11) {
-                return interaction.editReply({ content: `❌ Bu bütçeye uygun kadro dizilemedi. Lütfen bütçeyi biraz daha esnet!` });
-            }
+            if (enIyiSecimler.length < 11) return interaction.editReply({ content: '❌ Bu bütçeye uygun kadro bulunamadı.' });
 
             if (!db.gecici11ler) db.gecici11ler = {};
-            db.gecici11ler[user.id] = {
-                takimIsmi: kulup.isim,
-                oyuncuIdleri: enIyiSecimler.map(o => o.id),
-                toplamMaliyet: enIyiMaliyet,
-                dizilis: dizilisStr
-            };
+            db.gecici11ler[user.id] = { takimIsmi: kulup.isim, oyuncuIdleri: enIyiSecimler.map(o => o.id), toplamMaliyet: enIyiMaliyet, dizilis: dizilisStr };
             veriyiKaydet();
 
-            let listeAciklama = "";
-            enIyiSecimler.forEach((oyuncu, index) => {
-                listeAciklama += `**${index + 1}. ${oyuncu.name}** (${oyuncu.mevki}) - **${oyuncu.piyasaDegeri}M€**\n`;
-            });
-
-            return interaction.editReply({
-                embeds: [new EmbedBuilder()
-                    .setTitle(`⚡ KADRO ÖNİZLEMESİ (${dizilisStr})`)
-                    .setDescription(`Toplam Maliyet: **${(enIyiMaliyet/1000000).toFixed(1)}M€** (Hedef Bütçe: ${hedefButceMilyon}M€)\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
-                    .setColor('#f1c40f')
-                ]
-            });
+            let liste = "";
+            enIyiSecimler.forEach((o, i) => { liste += `${i+1}. ${o.name} (${o.mevki}) - ${o.piyasaDegeri}M€\n`; });
+            return interaction.editReply({ embeds: [new EmbedBuilder().setTitle(`⚡ KADRO ÖNİZLEMESİ`).setDescription(`Maliyet: ${(enIyiMaliyet/1000000).toFixed(1)}M€\n\n${liste}\n\n👉 Onay için: \`/11-onayla\``).setColor('#f1c40f')] });
         }
 
         if (commandName === '11-onayla') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
-                return interaction.reply({ content: '❌ Onay bekleyen kadro yok! Önce \`/oto-ilk11\` komutunu kullanmalısın.', flags: 64 });
-            }
-            const veri = db.gecici11ler[user.id];
+            const veri = db.gecici11ler && db.gecici11ler[user.id];
+            if (!veri) return interaction.reply({ content: '❌ Onay bekleyen kadro yok.', flags: 64 });
             const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
 
-            if (!kulup) {
-                delete db.gecici11ler[user.id];
-                veriyiKaydet();
-                return interaction.reply({ content: '❌ Takımınız bulunamadı.', flags: 64 });
-            }
-
-            if (kulup.butce < veri.toplamMaliyet) {
-                delete db.gecici11ler[user.id];
-                veriyiKaydet();
-                return interaction.reply({ content: '❌ Kulüp kasası bu kadro için yetersiz!', flags: 64 });
-            }
-
             kulup.butce -= veri.toplamMaliyet;
-            veri.oyuncuIdleri.forEach(id => {
-                if (db.oyuncular[id]) {
-                    db.oyuncular[id].takim = kulup.isim;
-                }
-            });
+            veri.oyuncuIdleri.forEach(id => { if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim; });
             delete db.gecici11ler[user.id];
             veriyiKaydet();
-
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO BAŞARIYLA KURULDU!').setDescription(`Oyuncular **${kulup.isim}** takımına katıldı. Kalan Kasa: **${(kulup.butce/1000000).toFixed(1)}M€**`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO KURULDU!').setColor('#2ecc71')] });
         }
 
         if (commandName === '11-reddet') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
-                return interaction.reply({ content: '❌ Reddedilecek onay bekleyen kadro yok.', flags: 64 });
-            }
-            delete db.gecici11ler[user.id];
+            if (db.gecici11ler) delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ content: '❌ Kadro teklifi reddedildi ve iptal edildi.', flags: 64 });
+            return interaction.reply({ content: '❌ İptal edildi.', flags: 64 });
         }
 
         if (commandName === 'tahmin') {
             const secilenMac = options.getString('mac');
             const skor = options.getString('skor').trim();
-
-            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) {
-                return interaction.reply({ content: '❌ Bu maç şu an oynanmıyor veya henüz başlamadı! Tahmin sadece maç başladıktan sonra yapılabilir.', flags: 64 });
-            }
-
+            if (!db.aktifMaclar || !db.aktifMaclar[secilenMac.toLowerCase()]) return interaction.reply({ content: '❌ Maç aktif değil.', flags: 64 });
             if (!db.kullanilanTahminler) db.kullanilanTahminler = {};
-            if (db.kullanilanTahminler[user.id]) {
-                return interaction.reply({ content: '❌ Bu maç için tahmin hakkınızı zaten kullandınız! Her maç için yalnızca **1 kez** tahmin yapabilirsiniz.', flags: 64 });
-            }
+            if (db.kullanilanTahminler[user.id]) return.reply ? interaction.reply({ content: '❌ Hakkınız bitti.', flags: 64 }) : null;
 
             if (!db.macTahminleri) db.macTahminleri = {};
             db.macTahminleri[user.id] = { mac: secilenMac, skor: skor };
             db.kullanilanTahminler[user.id] = true;
             veriyiKaydet();
-
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎯 TAHMİN ALINDI').setDescription(`Tahmininiz (**${skor}**) başarıyla kaydedildi. Maç sonunda doğru çıkarsa ödül kasanıza eklenecek!`).setColor('#3498db')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🎯 TAHMİN ALINDI').setDescription(`Tahmin: ${skor}`).setColor('#3498db')] });
         }
 
         if (commandName === 'transfermarkt-kanal-ayarla') {
@@ -1161,43 +1153,36 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'serbest-birak') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            const oyuncuAdi = options.getString('futbolcu-adi').toLowerCase();
-            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(oyuncuAdi) && o.takim === kulup.isim);
-            if (!f) return interaction.reply({ content: '❌ Oyuncu bulunamadı!', flags: 64 });
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()) && o.takim === kulup.isim);
+            if (!f) return interaction.reply({ content: '❌ Oyuncu yok.', flags: 64 });
             f.takim = 'Serbest';
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🚪 SERBEST BIRAKILDI').setDescription(`${f.name} serbest kaldı.`).setColor('#e74c3c')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🚪 SERBEST BIRAKILDI').setColor('#e74c3c')] });
         }
 
         if (commandName === 'transfer-teklif') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            const fAdi = options.getString('futbolcu-adi').toLowerCase();
-            const bons = options.getInteger('bonservis');
-            const maas = options.getInteger('haftalik-maas');
-            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(fAdi));
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
             if (!f) return interaction.reply({ content: '❌ Oyuncu yok.', flags: 64 });
 
             if (!db.transferPazari) db.transferPazari = {};
-            db.transferPazari[f.id] = { alanKulup: kulup.isim, bonservis: bons, gercekBonservis: bons*1000000, maas: maas };
+            db.transferPazari[f.id] = { alanKulup: kulup.isim, bonservis: options.getInteger('bonservis'), gercekBonservis: options.getInteger('bonservis')*1000000, maas: options.getInteger('haftalik-maas') };
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📩 TEKLİF YAPILDI').setDescription(`${f.name} için ${bons}M€ teklif edildi. Onay için: \`/transfer-kabul\``).setColor('#3498db')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📩 TEKLİF YAPILDI').setColor('#3498db')] });
         }
 
         if (commandName === 'transfer-kabul') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            const fAdi = options.getString('futbolcu-adi').toLowerCase();
-            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(fAdi));
+            const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
             const teklif = db.transferPazari && db.transferPazari[f.id];
             const tutar = teklif ? teklif.gercekBonservis : f.piyasaDegeri * 1000000;
 
             if (kulup.butce < tutar) return interaction.reply({ content: '❌ Kasa yetersiz!', flags: 64 });
-
             kulup.butce -= tutar;
             f.takim = kulup.isim;
             if (teklif) f.maas = teklif.maas;
             delete db.transferPazari[f.id];
             veriyiKaydet();
-
             await transferDuyurusuGonder(guild, kulup.isim, f.name, tutar/1000000, f.maas);
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setColor('#2ecc71')] });
         }
@@ -1212,13 +1197,11 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'kadrom') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
             const oyuncularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
-            if (oyuncularim.length === 0) return interaction.reply({ content: '❌ Kadroda futbolcu yok. \`/oto-ilk11\` komutu ile kadro kurabilirsin.', flags: 64 });
-
             let liste = "";
             let toplamMaas = 0;
             oyuncularim.forEach((f, i) => {
                 toplamMaas += f.maas;
-                liste += `**${i + 1}. ${f.name}** | ${f.mevki} | Gol: ${f.gol || 0} | Asist: ${f.asist || 0}\n`;
+                liste += `${i+1}. ${f.name} | ${f.mevki} | Gol: ${f.gol} | Asist: ${f.asist}\n`;
             });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADROM | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
@@ -1226,7 +1209,7 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'takimlar') {
             let liste = "";
             Object.values(db.takimlar).forEach((t, i) => {
-                liste += `**${i + 1}. ${t.isim}** | T.D: ${t.kurucu ? `<@${t.kurucu}>` : 'Boş'} | Kasa: €${t.butce.toLocaleString()}\n`;
+                liste += `${i+1}. ${t.isim} | T.D: ${t.kurucu ? `<@${t.kurucu}>` : 'Boş'} | Kasa: €${t.butce.toLocaleString()}\n`;
             });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛡️ TAKIMLAR').setDescription(liste).setColor('#3498db')] });
         }
@@ -1235,92 +1218,57 @@ client.on('interactionCreate', async interaction => {
             const takimAdiInput = options.getString('takim-adi').trim();
             const key = takimAdiInput.toLowerCase();
             if (!db.takimlar[key]) {
-                db.takimlar[key] = {
-                    isim: takimAdiInput,
-                    kurucu: String(user.id),
-                    puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0,
-                    butce: 150000000, sonSponsor: 0
-                };
+                db.takimlar[key] = { isim: takimAdiInput, kurucu: String(user.id), puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, butce: 150000000, sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 };
             } else {
                 db.takimlar[key].kurucu = String(user.id);
             }
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Artık **${db.takimlar[key].isim}** takımının Teknik Direktörüsün!`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Takım: ${db.takimlar[key].isim}`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'mac-yap') {
             const ev = kullanicininTakiminiBulVeyaAta(user.id);
             const dep = db.takimlar[options.getString('rakip-takim').trim().toLowerCase()];
-            if (!dep) return interaction.reply({ content: '❌ Rakip takım bulunamadı!', flags: 64 });
-
+            if (!dep) return interaction.reply({ content: '❌ Rakip yok.', flags: 64 });
             db.kullanilanTahminler = {};
             veriyiKaydet();
-
-            await interaction.reply({ content: `⚔️ **${ev.isim} vs ${dep.isim}** maçı başlıyor!` });
+            await interaction.reply({ content: `⚔️ ${ev.isim} vs ${dep.isim} maçı başlıyor!` });
             await tekilCanliMacOyna(channel, ev.isim, dep.isim, guild);
             return;
         }
 
         if (commandName === '3-takimli-sezon') {
             await interaction.deferReply();
-
-            const t1Isim = options.getString('takim1').trim();
-            const td1Uye = options.getUser('td1');
-            const t2Isim = options.getString('takim2').trim();
-            const td2Uye = options.getUser('td2');
-            const t3Isim = options.getString('takim3').trim();
-            const td3Uye = options.getUser('td3');
-
             const takimlarVerisi = [
-                { isim: t1Isim, td: td1Uye },
-                { isim: t2Isim, td: td2Uye },
-                { isim: t3Isim, td: td3Uye }
+                { isim: options.getString('takim1').trim(), td: options.getUser('td1') },
+                { isim: options.getString('takim2').trim(), td: options.getUser('td2') },
+                { isim: options.getString('takim3').trim(), td: options.getUser('td3') }
             ];
-
             takimlarVerisi.forEach(tv => {
                 const k = tv.isim.toLowerCase();
                 if (!db.takimlar[k]) {
-                    db.takimlar[k] = {
-                        isim: tv.isim,
-                        kurucu: String(tv.td.id),
-                        puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0,
-                        butce: 150000000, sonSponsor: 0
-                    };
+                    db.takimlar[k] = { isim: tv.isim, kurucu: String(tv.td.id), puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, butce: 150000000, sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 };
                 } else {
                     db.takimlar[k].kurucu = String(tv.td.id);
-                    db.takimlar[k].puan = 0;
-                    db.takimlar[k].av = 0;
-                    db.takimlar[k].o = 0;
-                    db.takimlar[k].g = 0;
-                    db.takimlar[k].b = 0;
-                    db.takimlar[k].m = 0;
                 }
             });
             veriyiKaydet();
-
-            db.kullanilanTahminler = {};
-            veriyiKaydet();
-
-            await interaction.editReply({ content: `🚀 **3 Takımlı Özel Sezon** başlatıldı! Toplam 10 maç arka arkaya oynanacak.` });
-            await otomatikUcluSezonBaslat(channel, takimlarVerisi, guild);
+            await interaction.editReply({ content: `🚀 3 Takımlı Sezon Başlatıldı!` });
             return;
         }
 
         if (commandName === 'mac-durdur') {
-            if (db.otomatikSezonVerisi) {
-                db.otomatikSezonVerisi.durduruldu = true;
-            }
+            if (db.otomatikSezonVerisi) db.otomatikSezonVerisi.durduruldu = true;
             db.aktifMaclar = {};
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛑 MAÇLAR / SEZON DURDURULDU').setDescription('Devam eden tüm otomatik maçlar ve sezon durduruldu.').setColor('#e74c3c')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛑 DURDURULDU').setColor('#e74c3c')] });
         }
 
         if (commandName === 'gol-kralligi') {
             const list = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
-            if (list.length === 0) return interaction.reply({ content: 'Gol atan oyuncu yok.', flags: 64 });
             let s = "";
-            list.forEach((o, i) => { s += `**${i+1}. ${o.name}** (${o.takim}) - **${o.gol} Gol**\n`; });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s).setColor('#e67e22')] });
+            list.forEach((o, i) => { s += `${i+1}. ${o.name} (${o.takim}) - ${o.gol} Gol\n`; });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s || 'Gol yok').setColor('#e67e22')] });
         }
 
         if (commandName === 'gol-sesi-kanal') {
@@ -1330,20 +1278,18 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'sponsor') {
             const k = kullanicininTakiminiBulVeyaAta(user.id);
-            const gelir = 20000000;
-            k.butce += gelir;
+            k.butce += 20000000;
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR ANLAŞMASI').setDescription(`Kulüp kasasına başarıyla **€20,000,000** sponsor geliri eklendi!`).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR GELİRİ').setDescription(`+€20,000,000 eklendi.`).setColor('#f1c40f')] });
         }
 
         if (commandName === 'butce') {
             const k = kullanicininTakiminiBulVeyaAta(user.id);
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe`).setDescription(`Kasa: **€${k.butce.toLocaleString()}**`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe`).setDescription(`Kasa: €${k.butce.toLocaleString()}\nKredi Borcu: €${(k.krediBorc || 0).toLocaleString()}`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'butce-ver') {
             const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
-            if (!t) return interaction.reply({ content: '❌ Takım bulunamadı!', flags: 64 });
             t.butce += options.getInteger('miktar') * 1000000;
             veriyiKaydet();
             return interaction.reply({ content: '✅ Bütçe eklendi.', flags: 64 });
@@ -1351,28 +1297,28 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'puan-durumu') {
             let s = "";
-            Object.values(db.takimlar).sort((a,b)=>b.puan-a.puan || b.av-a.av).forEach((t,i)=>{ s+=`**${i+1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o}\n`; });
+            Object.values(db.takimlar).sort((a,b)=>b.puan-a.puan || b.av-a.av).forEach((t,i)=>{ s+=`${i+1}. ${t.isim} - Puan: ${t.puan} | Averaj: ${t.av}\n`; });
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 PUAN DURUMU').setDescription(s).setColor('#3498db')] });
         }
 
         if (commandName === 'sezon-baslat') {
-            db.sezonAktif = true;
-            veriyiKaydet();
-            return interaction.reply({ content: '🚀 Sezon başlatıldı.' });
+            await interaction.deferReply();
+            await otomatikSezonBaslatGenel(channel, guild);
+            return;
         }
 
         if (commandName === 'sezon-durdur') {
             db.sezonAktif = false;
             veriyiKaydet();
-            return interaction.reply({ content: '🛑 Durduruldu.', flags: 64 });
+            return interaction.reply({ content: '🛑 Sezon durduruldu.', flags: 64 });
         }
 
         if (commandName === 'lig-sifirla') {
-            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; t.g=0; t.b=0; t.m=0; });
+            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; t.g=0; t.b=0; t.m=0; t.krediBorc=0; });
             db.kullanilanTahminler = {};
             db.aktifMaclar = {};
             veriyiKaydet();
-            return interaction.reply({ content: '🔄 Lig ve istatistikler sıfırlandı.', flags: 64 });
+            return interaction.reply({ content: '🔄 Lig sıfırlandı.', flags: 64 });
         }
 
     } catch (err) {
