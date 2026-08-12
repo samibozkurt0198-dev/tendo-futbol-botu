@@ -11,7 +11,13 @@ const {
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
 const fs = require('fs');
+const mongoose = require('mongoose');
 require('dotenv').config();
+
+// MongoDB Bağlantısı (Senin Cluster Adresin)
+mongoose.connect('mongodb+srv://samibozkurt8198_db_user:LdVdNvRgWjv3bf6J@cluster0.f2fkykj.mongodb.net/?appName=Cluster0')
+  .then(() => console.log('MongoDB veritabanına başarıyla bağlanıldı!'))
+  .catch((err) => console.error('Bağlantı hatası:', err));
 
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -451,17 +457,14 @@ const olaylar = [
     { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" }
 ];
 
-// --- ÖZEL POZİSYONEL GOL VE ASİST SEÇİM FONKSİYONU ---
 function futbolcuSecPozisyonaGore(takimAdi, tip, haricId = null) {
     if (!db.oyuncular) db.oyuncular = {};
     const takimOyunculari = Object.values(db.oyuncular).filter(o => o.takim === takimAdi && !o.sakatlik && !o.cezali && o.id !== haricId);
     
-    // Eğer takımda hiç oyuncu yoksa havuzdan veya yedekten seç
     const havuz = takimOyunculari.length > 0 ? takimOyunculari : Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
     if (havuz.length === 0) return { name: "Bilinmeyen Oyuncu", id: null, mevki: "OS" };
 
     if (tip === "gol") {
-        // Golleri öncelikle SNT ve KANAT'lar atsın (%80 ihtimal), az oranda OS, çok nadiren STP/DF/KL
         const sntVeyaKanat = havuz.filter(o => o.mevki === 'SNT' || o.mevki === 'KANAT');
         const ortaSaha = havuz.filter(o => o.mevki === 'OS');
         const defansVeKL = havuz.filter(o => o.mevki === 'STP' || o.mevki === 'DF' || o.mevki === 'KL');
@@ -475,7 +478,6 @@ function futbolcuSecPozisyonaGore(takimAdi, tip, haricId = null) {
             return defansVeKL[Math.floor(Math.random() * defansVeKL.length)];
         }
     } else if (tip === "asist") {
-        // Asistleri çoğunlukla OS (Orta Saha) ve KANAT'lar yapsın
         const osVeyaKanat = havuz.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
         const digerleri = havuz.filter(o => o.mevki !== 'OS' && o.mevki !== 'KANAT');
 
@@ -608,7 +610,6 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
             
-            // Yeni mantığa göre golü SNT/KANAT, asisti OS/KANAT yapsın
             let golAtan = futbolcuSecPozisyonaGore(hucumTakim, "gol");
             let asistYapan = futbolcuSecPozisyonaGore(hucumTakim, "asist", golAtan.id);
             if (asistYapan.name === golAtan.name) {
