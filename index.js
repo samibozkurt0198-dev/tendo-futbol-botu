@@ -303,6 +303,7 @@ function otomatikTakimlariVeFutbolculariYukle() {
         } else {
             if (db.takimlar[key].sonAntrenman === undefined) db.takimlar[key].sonAntrenman = 0;
             if (db.takimlar[key].krediBorc === undefined) db.takimlar[key].krediBorc = 0;
+            if (db.takimlar[key].sonSponsor === undefined) db.takimlar[key].sonSponsor = 0;
         }
     });
 
@@ -1355,8 +1356,23 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'sponsor') {
             const k = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!k) return interaction.reply({ content: '❌ Önce bir takım seçmelisin!', flags: 64 });
+
+            const simdi = Date.now();
+            const birSaat = 60 * 60 * 1000;
+
+            if (k.sonSponsor && (simdi - k.sonSponsor < birSaat)) {
+                const kalanDakika = Math.ceil((birSaat - (simdi - k.sonSponsor)) / (60 * 1000));
+                return interaction.reply({ 
+                    content: `⏳ Sponsor geliri almak için **${kalanDakika} dakika** daha beklemelisiniz!`, 
+                    flags: 64 
+                });
+            }
+
             k.butce += 20000000;
+            k.sonSponsor = simdi;
             veriyiKaydet();
+
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR GELİRİ').setDescription(`+€20,000,000 eklendi.`).setColor('#f1c40f')] });
         }
 
@@ -1391,7 +1407,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'lig-sifirla') {
-            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; t.g=0; t.b=0; t.m=0; t.krediBorc=0; });
+            Object.values(db.takimlar).forEach(t => { t.puan=0; t.av=0; t.o=0; t.g=0; t.b=0; t.m=0; t.krediBorc=0; t.sonSponsor=0; });
             db.kullanilanTahminler = {};
             db.aktifMaclar = {};
             veriyiKaydet();
