@@ -291,10 +291,15 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Bütçene uygun, yıldızlar barındıran tam kadro önizlemesi oluşturur.')
+        .setDescription('Belirttiğin bütçeye tam uygun, kadro önizlemesi oluşturur.')
         .addStringOption(opt => 
             opt.setName('dizilis')
                .setDescription('Örn: 4-3-3, 4-4-2, 3-5-2 (Toplam 10 olmalı)')
+               .setRequired(true)
+        )
+        .addIntegerOption(opt => 
+            opt.setName('butce')
+               .setDescription('Harcanacak toplam bütçe (Milyon € cinsinden, örn: 50)')
                .setRequired(true)
         ),
 
@@ -598,7 +603,7 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor) {
         tEv.butce += 2000000;
     } else if (depSkor > evSkor) {
         tDep.puan += 3; tDep.g++; tEv.m++;
-        tDep.butce += 2000000;
+        tEv.butce += 2000000;
     } else {
         tEv.puan += 1; tEv.b++;
         tDep.puan += 1; tDep.b++;
@@ -678,6 +683,9 @@ client.on('interactionCreate', async interaction => {
             if (!kulup) return interaction.editReply({ content: '❌ Ligde atanabileceğiniz takım kalmadı!' });
 
             const dizilisStr = options.getString('dizilis');
+            const hedefButceMilyon = options.getInteger('butce');
+            const hedefButceGercek = hedefButceMilyon * 1000000;
+
             const parcalar = dizilisStr.split('-').map(Number);
             if (parcalar.length !== 3) {
                 return interaction.editReply({ content: '❌ Geçersiz format! Örnek kullanım: `4-3-3`, `4-4-2` veya `3-5-2`' });
@@ -693,6 +701,7 @@ client.on('interactionCreate', async interaction => {
 
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             
+            // Oyuncuları bütçeye göre en yüksekten en düşüğe sıralayalım
             const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
@@ -702,31 +711,59 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply({ content: '❌ Yeterli serbest oyuncu bulunmuyor!' });
             }
 
-            const secilenler = [];
+            // Bütçeye göre en optimal kadroyu seçme algoritması (bütçeyi tamamen tüketecek şekilde yaklaşım)
+            let secilenler = [];
             let toplamBonservis = 0;
 
-            const secKaleci = klListesi[klListesi.length - 1]; 
-            secilenler.push(secKaleci);
-            toplamBonservis += secKaleci.piyasaDegeri * 1000000;
+            // En uygun kaleciyi seç (bütçeyi aşmayacak şekilde en pahalısı veya bütçeye en yakın)
+            let uygunKl = klListesi.find(o => (o.piyasaDegeri * 1000000) <= (hedefButceGercek - toplamBonservis)) || klListesi[klListesi.length - 1];
+            secilenler.push(uygunKl);
+            toplamBonservis += uygunKl.piyasaDegeri * 1000000;
 
+            // Defanslar
             for (let i = 0; i < defSayisi; i++) {
-                let secim = (i === 0 && dfListesi.length > 5) ? dfListesi[1] : dfListesi[dfListesi.length - 1 - i];
-                secilenler.push(secim);
-                toplamBonservis += secim.piyasaDegeri * 1000000;
+                let kalanHak = defSayisi - i;
+                let kalanButce = hedefButceGercek - toplamBonservis;
+                let ortalamaButce = kalanButce / (kalanHak + osSayisi + sntSayisi);
+                
+                let uygunDf = dfListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= ortalamaButce * 1.5) 
+                           || dfListesi.filter(o => !secilenler.includes(o)).pop() 
+                           || dfListesi[0];
+                secilenler.push(uygunDf);
+                toplamBonservis += uygunDf.piyasaDegeri * 1000000;
             }
+
+            // Orta Sahalar
             for (let i = 0; i < osSayisi; i++) {
-                let secim = (i === 0 && osListesi.length > 5) ? osListesi[2] : osListesi[osListesi.length - 1 - i];
-                secilenler.push(secim);
-                toplamBonservis += secim.piyasaDegeri * 1000000;
+                let kalanHak = osSayisi - i;
+                let kalanButce = hedefButceGercek - toplamBonservis;
+                let ortalamaButce = kalanButce / (kalanHak + sntSayisi);
+
+                let uygunOs = osListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= ortalamaButce * 1.5) 
+                           || osListesi.filter(o => !secilenler.includes(o)).pop() 
+                           || osListesi[0];
+                secilenler.push(uygunOs);
+                toplamBonservis += uygunOs.piyasaDegeri * 1000000;
             }
+
+            // Forvetler
             for (let i = 0; i < sntSayisi; i++) {
-                let secim = (i === 0 && sntListesi.length > 2) ? sntListesi[0] : sntListesi[sntListesi.length - 1 - i];
-                secilenler.push(secim);
-                toplamBonservis += secim.piyasaDegeri * 1000000;
+                let kalanButce = hedefButceGercek - toplamBonservis;
+
+                let uygunSnt = sntListesi.find(o => !secilenler.includes(o) && (o.piyasaDegeri * 1000000) <= kalanButce) 
+                            || sntListesi.filter(o => !secilenler.includes(o)).pop() 
+                            || sntListesi[0];
+                secilenler.push(uygunSnt);
+                toplamBonservis += uygunSnt.piyasaDegeri * 1000000;
+            }
+
+            // Eğer toplam maliyet istenen bütçeyi geçtiyse veya kulüp kasasında bu para yoksa uyar
+            if (toplamBonservis > hedefButceGercek) {
+                return interaction.editReply({ content: `❌ Belirttiğin **${hedefButceMilyon}M€** bütçeye bu dizilişte sığabilecek en ucuz kadro bile **${(toplamBonservis/1000000).toFixed(1)}M€** tutuyor. Lütfen bütçeyi artır!` });
             }
 
             if (kulup.butce < toplamBonservis) {
-                return interaction.editReply({ content: `❌ Bu dengeli ilk 11'in maliyeti **${(toplamBonservis/1000000).toFixed(1)}M€**, fakat kasanda **${(kulup.butce/1000000).toFixed(1)}M€** var!` });
+                return interaction.editReply({ content: `❌ Kulüp kasanda yeterli para yok! Gereken: **${(toplamBonservis/1000000).toFixed(1)}M€**, Kasan: **${(kulup.butce/1000000).toFixed(1)}M€**` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
@@ -745,8 +782,8 @@ client.on('interactionCreate', async interaction => {
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
-                    .setTitle(`⚡ ÖNİZLEME: OTOMATİK İLK 11 (${dizilisStr})`)
-                    .setDescription(`**${kulup.isim}** için hazırlanan kadro yukarıdadır.\nToplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\`\n👉 Reddetmek için: \`/11-reddet\``)
+                    .setTitle(`⚡ BÜTÇELİ KADRO ÖNİZLEMESİ (${dizilisStr})`)
+                    .setDescription(`**${kulup.isim}** için ${hedefButceMilyon}M€ bütçeye göre kurulan kadro:\nHarcanan Tutar: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\`\n👉 Reddetmek için: \`/11-reddet\``)
                     .setColor('#f1c40f')
                 ]
             });
