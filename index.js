@@ -6,7 +6,10 @@ const {
     Routes, 
     EmbedBuilder, 
     PermissionFlagsBits,
-    ChannelType 
+    ChannelType,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
 } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
@@ -332,7 +335,9 @@ function otomatikTakimlariVeFutbolculariYukle() {
 }
 
 function kullanicininTakiminiBulVeyaAta(userId) {
+    if (!userId || !db.takimlar) return null;
     const temizId = String(userId).trim();
+    
     let bul = Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
     if (bul) return bul;
 
@@ -719,22 +724,17 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
                 return;
             }
 
-            // DÜZENLENEN KISIM: Kırmızı Kart ve Sakatlık Oranları Düşürüldü
             let secilenOlay;
             const sans = Math.random();
 
             if (sans < 0.15) { 
-                // %15 İhtimalle Gol
                 const goller = olaylar.filter(o => o.tip === "gol");
                 secilenOlay = goller[Math.floor(Math.random() * goller.length)];
             } else if (sans < 0.17) { 
-                // %2 İhtimalle Sakatlık
                 secilenOlay = olaylar.find(o => o.tip === "sakatlik");
             } else if (sans < 0.18) { 
-                // %1 İhtimalle Kırmızı Kart
                 secilenOlay = olaylar.find(o => o.tip === "kirmizi_kart");
             } else { 
-                // %82 İhtimalle Normal Maç İçi Olay (Şut, Kurtarış, Korner, Sarı Kart vb.)
                 const normaller = olaylar.filter(o => o.tip === "normal" || o.tip === "sari_kart");
                 secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
             }
@@ -896,6 +896,47 @@ async function otomatikSezonBaslatGenel(channel, guild) {
 }
 
 client.on('interactionCreate', async interaction => {
+    // ------------------- BUTTON HANDLER (YENİ EKLENDİ) -------------------
+    if (interaction.isButton()) {
+        const userId = interaction.user.id;
+        if (interaction.customId === 'onayla_11') {
+            const veri = db.gecici11ler && db.gecici11ler[userId];
+            if (!veri) {
+                return interaction.reply({ content: '❌ Bekleyen kadro onay isteğiniz bulunmuyor.', flags: 64 });
+            }
+
+            const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
+            if (!kulup) {
+                return interaction.reply({ content: '❌ Bağlı bulunduğunuz takım sistemde bulunamadı!', flags: 64 });
+            }
+
+            if (kulup.butce < veri.toplamMaliyet) {
+                return interaction.reply({ content: `❌ İşlem anında kasa bütçeniz yetersiz kaldı! (Gerekli: €${veri.toplamMaliyet.toLocaleString()})`, flags: 64 });
+            }
+
+            kulup.butce -= veri.toplamMaliyet;
+            veri.oyuncuIdleri.forEach(id => {
+                if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim;
+            });
+
+            delete db.gecici11ler[userId];
+            veriyiKaydet();
+
+            return interaction.update({ 
+                embeds: [new EmbedBuilder().setTitle('✅ KADRO BAŞARIYLA TAMAMLANDI!').setDescription(`Kadro **${kulup.isim}** takımınıza aktarıldı.\nHarcanan Bütçe: **€${veri.toplamMaliyet.toLocaleString()}**\nKalan Bütçe: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')],
+                components: [] 
+            });
+        }
+
+        if (interaction.customId === 'reddet_11') {
+            if (db.gecici11ler && db.gecici11ler[userId]) {
+                delete db.gecici11ler[userId];
+                veriyiKaydet();
+            }
+            return interaction.update({ content: '❌ Otomatik 11 kurulumu iptal edildi.', embeds: [], components: [] });
+        }
+    }
+
     if (interaction.isAutocomplete()) {
         const focusedOption = interaction.options.getFocused(true);
         if (focusedOption.name === 'mac') {
@@ -1130,7 +1171,10 @@ client.on('interactionCreate', async interaction => {
             const hedefButceMilyon = options.getInteger('butce');
             const hedefButceGercek = hedefButceMilyon * 1000000;
 
-            if (kulup.butce < hedefButceGercek) return interaction.editReply({ content: '❌ Kasa yetersiz!' });
+            if (kulup.butce < hedefButceGercek) {
+                return interaction.editReply({ content: `❌ Kasa yetersiz! Mevcut Kasa: **€${kulup.butce.toLocaleString()}**, İstenen: **€${hedefButceGercek.toLocaleString()}**` });
+            }
+
             const parcalar = dizilisStr.split('-').map(Number);
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
 
@@ -1186,25 +1230,38 @@ client.on('interactionCreate', async interaction => {
 
             let liste = "";
             enIyiSecimler.forEach((o, i) => { liste += `${i+1}. ${o.name} (${o.mevki}) - ${o.piyasaDegeri}M€\n`; });
-            return interaction.editReply({ embeds: [new EmbedBuilder().setTitle(`⚡ KADRO ÖNİZLEMESİ`).setDescription(`Maliyet: ${(enIyiMaliyet/1000000).toFixed(1)}M€\n\n${liste}\n\n👉 Onay için: \`/11-onayla\``).setColor('#f1c40f')] });
+
+            // Butonlu Onay Ekranı (Interactive Buttons)
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('onayla_11').setLabel('✅ Kadroyu Onayla').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('reddet_11').setLabel('❌ İptal Et').setStyle(ButtonStyle.Danger)
+            );
+
+            return interaction.editReply({ 
+                embeds: [new EmbedBuilder().setTitle(`⚡ KADRO ÖNİZLEMESİ | ${kulup.isim}`).setDescription(`Maliyet: **${(enIyiMaliyet/1000000).toFixed(1)}M€**\n\n${liste}\n\nAşağıdaki butonlardan onaylayabilir veya \`/11-onayla\` yazabilirsiniz.`).setColor('#f1c40f')],
+                components: [row]
+            });
         }
 
         if (commandName === '11-onayla') {
             const veri = db.gecici11ler && db.gecici11ler[user.id];
-            if (!veri) return interaction.reply({ content: '❌ Onay bekleyen kadro yok.', flags: 64 });
+            if (!veri) return interaction.reply({ content: '❌ Onay bekleyen kadro bulunamadı.', flags: 64 });
             const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
+
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız bulunamadı.', flags: 64 });
+            if (kulup.butce < veri.toplamMaliyet) return interaction.reply({ content: '❌ Kasa bütçeniz artık yetersiz!', flags: 64 });
 
             kulup.butce -= veri.toplamMaliyet;
             veri.oyuncuIdleri.forEach(id => { if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim; });
             delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO KURULDU!').setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO BAŞARIYLA KURULDU!').setDescription(`Oyuncular **${kulup.isim}** takımınıza eklendi. Kalan Kasa: **€${kulup.butce.toLocaleString()}**`).setColor('#2ecc71')] });
         }
 
         if (commandName === '11-reddet') {
-            if (db.gecici11ler) delete db.gecici11ler[user.id];
+            if (db.gecici11ler && db.gecici11ler[user.id]) delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ content: '❌ İptal edildi.', flags: 64 });
+            return interaction.reply({ content: '❌ Teklif reddedildi ve temizlendi.', flags: 64 });
         }
 
         if (commandName === 'tahmin') {
@@ -1314,13 +1371,22 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'takim-sec') {
             const takimAdiInput = options.getString('takim-adi').trim();
             const key = takimAdiInput.toLowerCase();
+            const userIdStr = String(user.id);
+
+            // Kullanıcının daha önceden seçmiş olduğu eski takımları temizle
+            Object.values(db.takimlar).forEach(t => {
+                if (t.kurucu && String(t.kurucu).trim() === userIdStr) {
+                    t.kurucu = null;
+                }
+            });
+
             if (!db.takimlar[key]) {
-                db.takimlar[key] = { isim: takimAdiInput, kurucu: String(user.id), puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, butce: 150000000, sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 };
+                db.takimlar[key] = { isim: takimAdiInput, kurucu: userIdStr, puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0, butce: 150000000, sonSponsor: 0, sonAntrenman: 0, krediBorc: 0 };
             } else {
-                db.takimlar[key].kurucu = String(user.id);
+                db.takimlar[key].kurucu = userIdStr;
             }
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Takım: ${db.takimlar[key].isim}`).setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('👔 T.D. OLUNDU!').setDescription(`Tebrikler <@${user.id}>, **${db.takimlar[key].isim}** takımının Teknik Direktörü oldun!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'mac-yap') {
@@ -1454,7 +1520,7 @@ client.on('interactionCreate', async interaction => {
         }
 
     } catch (err) {
-        console.error(err);
+        console.error("Komut işleme hatası:", err);
     }
 });
 
