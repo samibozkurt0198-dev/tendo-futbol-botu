@@ -213,6 +213,8 @@ const GUNCEL_FUTBOLCULAR = [
 
 function otomatikTakimlariVeFutbolculariYukle() {
     if (!db.takimlar) db.takimlar = {};
+    
+    // Sadece takım hiç yoksa veya boşsa oluştur (Mevcut takımları ve kasadaki parayı EZMEZ)
     UNLU_TAKIMLAR.forEach(takimIsmi => {
         const key = takimIsmi.toLowerCase();
         if (!db.takimlar[key]) {
@@ -231,6 +233,7 @@ function otomatikTakimlariVeFutbolculariYukle() {
         }
     });
 
+    // Oyuncular hiç yoksa havuza ekle, varsa mevcut durumlarını koru
     if (!db.oyuncular || Object.keys(db.oyuncular).length === 0) {
         db.oyuncular = {};
         GUNCEL_FUTBOLCULAR.forEach((f, index) => {
@@ -701,7 +704,6 @@ client.on('interactionCreate', async interaction => {
 
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
             
-            // Oyuncuları bütçeye göre en yüksekten en düşüğe sıralayalım
             const klListesi = serbestler.filter(o => o.mevki === 'KL').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT').sort((a,b) => b.piyasaDegeri - a.piyasaDegeri);
@@ -711,16 +713,13 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply({ content: '❌ Yeterli serbest oyuncu bulunmuyor!' });
             }
 
-            // Bütçeye göre en optimal kadroyu seçme algoritması (bütçeyi tamamen tüketecek şekilde yaklaşım)
             let secilenler = [];
             let toplamBonservis = 0;
 
-            // En uygun kaleciyi seç (bütçeyi aşmayacak şekilde en pahalısı veya bütçeye en yakın)
             let uygunKl = klListesi.find(o => (o.piyasaDegeri * 1000000) <= (hedefButceGercek - toplamBonservis)) || klListesi[klListesi.length - 1];
             secilenler.push(uygunKl);
             toplamBonservis += uygunKl.piyasaDegeri * 1000000;
 
-            // Defanslar
             for (let i = 0; i < defSayisi; i++) {
                 let kalanHak = defSayisi - i;
                 let kalanButce = hedefButceGercek - toplamBonservis;
@@ -733,7 +732,6 @@ client.on('interactionCreate', async interaction => {
                 toplamBonservis += uygunDf.piyasaDegeri * 1000000;
             }
 
-            // Orta Sahalar
             for (let i = 0; i < osSayisi; i++) {
                 let kalanHak = osSayisi - i;
                 let kalanButce = hedefButceGercek - toplamBonservis;
@@ -746,7 +744,6 @@ client.on('interactionCreate', async interaction => {
                 toplamBonservis += uygunOs.piyasaDegeri * 1000000;
             }
 
-            // Forvetler
             for (let i = 0; i < sntSayisi; i++) {
                 let kalanButce = hedefButceGercek - toplamBonservis;
 
@@ -757,7 +754,6 @@ client.on('interactionCreate', async interaction => {
                 toplamBonservis += uygunSnt.piyasaDegeri * 1000000;
             }
 
-            // Eğer toplam maliyet istenen bütçeyi geçtiyse veya kulüp kasasında bu para yoksa uyar
             if (toplamBonservis > hedefButceGercek) {
                 return interaction.editReply({ content: `❌ Belirttiğin **${hedefButceMilyon}M€** bütçeye bu dizilişte sığabilecek en ucuz kadro bile **${(toplamBonservis/1000000).toFixed(1)}M€** tutuyor. Lütfen bütçeyi artır!` });
             }
