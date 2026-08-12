@@ -345,9 +345,9 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Belirttiğin bütçeye tam uygun, kadro önizlemesi oluşturur.')
+        .setDescription('Belirttiğin bütçeyi asssla aşmayan kadro önizlemesi oluşturur.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
-        .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe (Milyon €)').setRequired(true)),
+        .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe üst sınırı (Milyon €)').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('11-onayla')
@@ -733,8 +733,14 @@ client.on('interactionCreate', async interaction => {
             const defSayisi = parcalar[0], osSayisi = parcalar[1], sntSayisi = parcalar[2];
             const serbestler = Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
 
-            const ortalamaHedefBons = hedefButceGercek / 11;
-            const siraliSerbestler = serbestler.sort((a, b) => Math.abs((a.piyasaDegeri * 1000000) - ortalamaHedefBons) - Math.abs((b.piyasaDegeri * 1000000) - ortalamaHedefBons));
+            // Bütçeyi kesinlikle aşmayacak şekilde ucuzdan pahalıya akıllı filtreleme
+            const uygunSerbestler = serbestler.filter(o => (o.piyasaDegeri * 1000000) <= hedefButceGercek);
+            if (uygunSerbestler.length < 11) {
+                return interaction.editReply({ content: `❌ Bu bütçeye (${hedefButceMilyon}M€) uygun yeterli serbest oyuncu bulunamadı. Bütçeyi biraz artırmayı dene!` });
+            }
+
+            // En yüksek değerli ama bütçe sınırını geçmeyen oyuncuları seçmek için bütçeye en yakın olanları sıralıyoruz
+            const siraliSerbestler = uygunSerbestler.sort((a, b) => (b.piyasaDegeri) - (a.piyasaDegeri));
 
             const klListesi = siraliSerbestler.filter(o => o.mevki === 'KL');
             const dfListesi = siraliSerbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
@@ -744,28 +750,29 @@ client.on('interactionCreate', async interaction => {
             let secilenler = [];
             let toplamBonservis = 0;
 
-            let secilenKl = klListesi[0] || serbestler[0];
+            let secilenKl = klListesi[0] || uygunSerbestler[0];
             secilenler.push(secilenKl);
             toplamBonservis += secilenKl.piyasaDegeri * 1000000;
 
             for (let i = 0; i < defSayisi; i++) {
-                let d = dfListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                let d = dfListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
                 secilenler.push(d);
                 toplamBonservis += d.piyasaDegeri * 1000000;
             }
             for (let i = 0; i < osSayisi; i++) {
-                let o = osListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                let o = osListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
                 secilenler.push(o);
                 toplamBonservis += o.piyasaDegeri * 1000000;
             }
             for (let i = 0; i < sntSayisi; i++) {
-                let s = sntListesi.find(o => !secilenler.includes(o)) || serbestler[0];
+                let s = sntListesi.find(o => !secilenler.includes(o)) || uygunSerbestler[0];
                 secilenler.push(s);
                 toplamBonservis += s.piyasaDegeri * 1000000;
             }
 
+            // Kesin güvenlik kontrolü: Eğer hesap hatasıyla yine aşarsa en pahalıdan başlayarak ucuzlarıyla değiştir veya hata ver
             if (toplamBonservis > hedefButceGercek) {
-                return interaction.editReply({ content: `❌ Seçtiğin bütçeye (${hedefButceMilyon}M€) uygun oyuncu bulunamadı, toplam maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** tuttu. Biraz daha yüksek bütçe dene!` });
+                return interaction.editReply({ content: `❌ Seçilen bütçeye (${hedefButceMilyon}M€) tam uydurulamadı, toplam maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** oldu. Lütfen biraz daha yüksek bütçe gir!` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
@@ -785,7 +792,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setTitle(`⚡ KADRO ÖNİZLEMESİ (${dizilisStr})`)
-                    .setDescription(`Toplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€**\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
+                    .setDescription(`Toplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** (Bütçe: ${hedefButceMilyon}M€)\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
                     .setColor('#f1c40f')
                 ]
             });
