@@ -6,10 +6,7 @@ const {
     Routes, 
     EmbedBuilder, 
     PermissionFlagsBits,
-    ChannelType,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle 
+    ChannelType 
 } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
@@ -49,7 +46,7 @@ let db = {
     transferKanalId: null,
     hosgeldinKanalId: null,
     sponsorKanalId: null,
-    botCalistirmaKanalId: null, // Botun sadece çalışacağı kanal ID'si
+    botCalistirmaKanalId: null,
     otomatikSezonVerisi: null
 };
 
@@ -348,10 +345,18 @@ function kullanicininTakiminiBulVeyaAta(userId) {
 
 const commands = [
     new SlashCommandBuilder()
-        .setName('bot-kanal-ayarla')
-        .setDescription('Botun sadece çalışacağı ana komut kanalını ayarlar.')
-        .addChannelOption(opt => opt.setName('kanal').setDescription('Bot Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setName('bot-kanal')
+        .setDescription('Botun komut kullanım kanallarını yönetir.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(sub =>
+            sub.setName('ayarla')
+               .setDescription('Botun çalışacağı ana komut kanalını ayarlar.')
+               .addChannelOption(opt => opt.setName('kanal').setDescription('Bot Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        )
+        .addSubcommand(sub =>
+            sub.setName('kaldır')
+               .setDescription('Kanal kısıtlamasını kaldırır, bot her kanalda kullanılabilir.')
+        ),
 
     new SlashCommandBuilder()
         .setName('twitter')
@@ -361,6 +366,10 @@ const commands = [
     new SlashCommandBuilder()
         .setName('rehber')
         .setDescription('Sunucuda nasıl takım alacağını ve kadro kuracağını anlatan rehber menüsü.'),
+
+    new SlashCommandBuilder()
+        .setName('takvim')
+        .setDescription('Sunucudaki aktif maçları ve lig takvimini görüntüler.'),
 
     new SlashCommandBuilder()
         .setName('hosgeldin-kanal-ayarla')
@@ -818,23 +827,41 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName, options, user, channel, guild, member } = interaction;
 
-    // --- BOT ÇALIŞTIRMA KANALI KONTROLÜ ---
-    if (commandName !== 'bot-kanal-ayarla' && db.botCalistirmaKanalId && channel.id !== db.botCalistirmaKanalId) {
-        return interaction.reply({ 
-            content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> kanalında kullanabilirsin!`, 
-            flags: 64 
-        });
+    const isBotChannel = db.botCalistirmaKanalId && channel.id === db.botCalistirmaKanalId;
+    const isSponsorChannel = db.sponsorKanalId && channel.id === db.sponsorKanalId;
+
+    if (commandName !== 'bot-kanal' && commandName !== 'sponsor-kanal-ayarla') {
+        if (db.botCalistirmaKanalId && !isBotChannel && !isSponsorChannel) {
+            return interaction.reply({ 
+                content: `❌ Bu botu sadece <#${db.botCalistirmaKanalId}> veya <#${db.sponsorKanalId || 'belirlenen sponsor'}> kanalında kullanabilirsin!`, 
+                flags: 64 
+            });
+        }
     }
-    // -------------------------------------
 
     try {
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
 
-        if (commandName === 'bot-kanal-ayarla') {
-            db.botCalistirmaKanalId = options.getChannel('kanal').id;
-            veriyiKaydet();
-            return interaction.reply({ content: '✅ Botun komut çalıştırma kanalı başarıyla ayarlandı!', flags: 64 });
+        if (commandName === 'bot-kanal') {
+            const sub = options.getSubcommand();
+            
+            if (sub === 'ayarla') {
+                const secilenKanal = options.getChannel('kanal');
+                db.botCalistirmaKanalId = secilenKanal.id;
+                veriyiKaydet();
+                return interaction.reply({ content: `✅ Botun komut çalıştırma kanalı başarıyla ${secilenKanal} olarak ayarlandı!`, flags: 64 });
+            } 
+            
+            else if (sub === 'kaldır') {
+                if (!db.botCalistirmaKanalId) {
+                    return interaction.reply({ content: `ℹ️ Zaten aktif bir kanal kısıtlaması yok, bot şu an tüm kanallarda çalışabiliyor!`, flags: 64 });
+                }
+                
+                db.botCalistirmaKanalId = null;
+                veriyiKaydet();
+                return interaction.reply({ content: `✅ Kanal kısıtlaması başarıyla kaldırıldı! Bot artık sunucudaki **tüm kanallarda** serbestçe kullanılabilir.`, flags: 64 });
+            }
         }
 
         if (commandName === 'twitter') {
@@ -872,6 +899,33 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [rehberEmbed] });
         }
 
+        if (commandName === 'takvim') {
+            const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
+            let aciklama = "";
+
+            if (aktifler.length > 0) {
+                aciklama += `🔴 **Şu An Canlı Oynanan Maçlar:**\n`;
+                aktifler.forEach(mac => {
+                    aciklama += `• ${mac}\n`;
+                });
+                aciklama += `\n`;
+            } else {
+                aciklama += `🟢 Şu an canlı oynanan aktif bir maç bulunmuyor.\n\n`;
+            }
+
+            aciklama += `📅 **Lig Takvimi & Bilgiler:**\n`;
+            aciklama += `• Maçlar \`/mac-yap\` veya \`/3-takimli-sezon\` komutlarıyla başlatılır.\n`;
+            aciklama += `• Devam eden maçlar için \`/tahmin\` komutunu kullanabilirsin.\n`;
+
+            const takvimEmbed = new EmbedBuilder()
+                .setTitle('⚽ TENDO LİGİ - MAÇ TAKVİMİ')
+                .setDescription(aciklama)
+                .setColor('#2ecc71')
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [takvimEmbed] });
+        }
+
         if (commandName === 'hosgeldin-kanal-ayarla') {
             db.hosgeldinKanalId = options.getChannel('kanal').id;
             veriyiKaydet();
@@ -881,7 +935,7 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'sponsor-kanal-ayarla') {
             db.sponsorKanalId = options.getChannel('kanal').id;
             veriyiKaydet();
-            return interaction.reply({ content: '✅ Sponsor komutu kanalı başarıyla ayarlandı! Artık `/sponsor` sadece bu kanalda kullanılabilecek.', flags: 64 });
+            return interaction.reply({ content: '✅ Sponsor komutu kanalı başarıyla ayarlandı!', flags: 64 });
         }
 
         if (commandName === 'kayıt') {
@@ -1275,10 +1329,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'sponsor') {
-            if (db.sponsorKanalId && channel.id !== db.sponsorKanalId) {
-                return interaction.reply({ content: `❌ Bu komutu sadece <#${db.sponsorKanalId}> kanalında kullanabilirsin!`, flags: 64 });
-            }
-
             const k = kullanicininTakiminiBulVeyaAta(user.id);
             const gelir = 20000000;
             k.butce += gelir;
