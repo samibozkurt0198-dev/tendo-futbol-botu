@@ -477,6 +477,7 @@ const commands = [
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
+    new SlashCommandBuilder().setName('asist-kralligi').setDescription('Asist krallığını listeler.'),
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
     new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
@@ -563,12 +564,14 @@ const olaylar = [
     { metin: "{dakika}' - 💥 **DIŞARI GİTTİ!** {hücum} oyuncusu **{oyuncu}** sert vurdu, top az farkla auta çıktı.", tip: "normal" },
     { metin: "{dakika}' - 📐 **KORNER!** {hücum} köşe vuruşu kazandı, tehlikeli orta geliyor.", tip: "normal" },
     { metin: "{dakika}' - ❌ **DİREKTEN DÖNDÜ!** {hücum} atağında **{oyuncu}** vurdu, direkten döndü!", tip: "normal" },
-    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" }
+    { metin: "{dakika}' - 🟨 **SARI KART!** {defans} takımından sert müdahale.", tip: "normal" },
+    { metin: "{dakika}' - 🟥 **KIRMIZI KART!** {defans} takımında **{oyuncu}** acımasızca kaydı ve hakem doğrudan kırmızı kart gösterdi!", tip: "kirmizi_kart" },
+    { metin: "{dakika}' - 🚑 **SAKATLIK!** {hücum} oyuncusu **{oyuncu}** acı içinde yerde kaldı ve kenara oyundan alındı.", tip: "sakatlik" }
 ];
 
 function futbolcuSecPozisyonaGore(takimAdi, tip, haricId = null) {
     if (!db.oyuncular) db.oyuncular = {};
-    const takimOyunculari = Object.values(db.oyuncular).filter(o => o.takim === takimAdi && !o.sakatlik && !o.cezali && o.id !== haricId);
+    const takimOyunculari = Object.values(db.oyuncular).filter(o => o.takim === takimAdi && (!o.sakatlik || o.sakatlik <= 0) && (!o.cezali || o.cezali <= 0) && o.id !== haricId);
     
     const havuz = takimOyunculari.length > 0 ? takimOyunculari : Object.values(db.oyuncular).filter(o => o.takim === 'Serbest');
     if (havuz.length === 0) return { name: "Bilinmeyen Oyuncu", id: null, mevki: "OS" };
@@ -718,14 +721,14 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
                 const goller = olaylar.filter(o => o.tip === "gol");
                 secilenOlay = goller[Math.floor(Math.random() * goller.length)];
             } else { 
-                const normaller = olaylar.filter(o => o.tip === "normal");
+                const normaller = olaylar.filter(o => o.tip !== "gol");
                 secilenOlay = normaller[Math.floor(Math.random() * normaller.length)];
             }
 
             const hucumTakim = Math.random() < 0.5 ? evSahibi : deplasman;
             const defansTakim = hucumTakim === evSahibi ? deplasman : evSahibi;
             
-            let golAtan = futbolcuSecPozisyonaGore(hucumTakim, "gol");
+            let golAtan = futbolcuSecPozisyonaGore(hucumTakim, secilenOlay.tip === "kirmizi_kart" ? "normal" : "gol");
             let asistYapan = futbolcuSecPozisyonaGore(hucumTakim, "asist", golAtan.id);
             if (asistYapan.name === golAtan.name) {
                 asistYapan = { name: "Orta Saha Oyuncusu", mevki: "OS" };
@@ -743,6 +746,14 @@ function tekilCanliMacOyna(channel, evSahibi, deplasman, guild) {
                 }
                 veriyiKaydet();
                 if (guild) golSesiCal(guild);
+            } else if (secilenOlay.tip === "kirmizi_kart" && golAtan && golAtan.id) {
+                if (db.oyuncular[golAtan.id]) {
+                    db.oyuncular[golAtan.id].cezali = 1;
+                }
+            } else if (secilenOlay.tip === "sakatlik" && golAtan && golAtan.id) {
+                if (db.oyuncular[golAtan.id]) {
+                    db.oyuncular[golAtan.id].sakatlik = 2;
+                }
             }
 
             const guncelSkor = `**${evSahibi} ${evSkor} - ${depSkor} ${deplasman}**`;
@@ -805,6 +816,14 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor, channel) {
         tEv.butce += 1000000; tDep.butce += 1000000;
     }
 
+    // Sakatlık ve cezaları 1 maç azalt
+    Object.values(db.oyuncular).forEach(o => {
+        if (o.takim === tEv.isim || o.takim === tDep.isim) {
+            if (o.cezali > 0) o.cezali--;
+            if (o.sakatlik > 0) o.sakatlik--;
+        }
+    });
+
     krediBorcunuDusVeyaHacizUygula(tEv, channel);
     krediBorcunuDusVeyaHacizUygula(tDep, channel);
 
@@ -845,7 +864,16 @@ async function otomatikSezonBaslatGenel(channel, guild) {
 
     if (db.otomatikSezonVerisi && !db.otomatikSezonVerisi.durduruldu) {
         let puanSiralamasi = [...aktifTakimlar].map(t => db.takimlar[t.isim.toLowerCase()]).sort((a, b) => b.puan - a.puan || b.av - a.av);
-        let sonucMetni = `🏆 **LİG SEZONU SONA ERDİ! ŞAMPİYON: ${puanSiralamasi[0].isim}**\n\n`;
+        let sampiyon = puanSiralamasi[0];
+        sampiyon.butce += 100000000;
+
+        // Sezon bittiğinde tüm sakatlık ve cezaları sıfırla
+        Object.values(db.oyuncular).forEach(o => {
+            o.sakatlik = 0;
+            o.cezali = 0;
+        });
+
+        let sonucMetni = `🏆 **LİG SEZONU SONA ERDİ! ŞAMPİYON: ${sampiyon.isim}**\n💰 **${sampiyon.isim}** şampiyonluk ödülü olarak **+100M€** kazandı!\n\n`;
         puanSiralamasi.forEach((t, index) => {
             sonucMetni += `**${index + 1}. ${t.isim}** - Puan: ${t.puan} | Averaj: ${t.av} | O: ${t.o}\n`;
         });
@@ -986,10 +1014,10 @@ client.on('interactionCreate', async interaction => {
             const miktarMilyon = options.getInteger('miktar');
             if (miktarMilyon <= 0) return interaction.reply({ content: '❌ Geçerli bir miktar girin.', flags: 64 });
 
-            const gercekMiktar = miktarMilyon * 1000000;
-            const geriOdeme = Math.round(gercekMiktar * 1.10);
+            const gercekMaliyet = miktarMilyon * 1000000;
+            const geriOdeme = Math.round(gercekMaliyet * 1.10);
 
-            kulup.butce += gercekMiktar;
+            kulup.butce += gercekMaliyet;
             kulup.krediBorc = (kulup.krediBorc || 0) + geriOdeme;
             veriyiKaydet();
 
@@ -1174,17 +1202,29 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'transfer-kabul') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
             const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
+            
+            if (!f) return interaction.reply({ content: '❌ Oyuncu bulunamadı.', flags: 64 });
+
             const teklif = db.transferPazari && db.transferPazari[f.id];
             const tutar = teklif ? teklif.gercekBonservis : f.piyasaDegeri * 1000000;
 
             if (kulup.butce < tutar) return interaction.reply({ content: '❌ Kasa yetersiz!', flags: 64 });
+
+            // Eski takıma (satıcı kulübe) bonservis bedelini ekle
+            const eskiTakimKey = f.takim ? f.takim.toLowerCase() : null;
+            if (eskiTakimKey && db.takimlar[eskiTakimKey]) {
+                db.takimlar[eskiTakimKey].butce += tutar;
+            }
+
             kulup.butce -= tutar;
             f.takim = kulup.isim;
             if (teklif) f.maas = teklif.maas;
             delete db.transferPazari[f.id];
+            
             veriyiKaydet();
-            await transferDuyurusuGonder(guild, kulup.isim, f.name, tutar/1000000, f.maas);
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setColor('#2ecc71')] });
+            await transferDuyurusuGonder(guild, kulup.isim, f.name, tutar / 1000000, f.maas);
+            
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🤝 TRANSFER BAŞARILI!').setDescription(`**${f.name}**, ${tutar/1000000}M€ karşılığında transfer edildi!`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'transfer-red') {
@@ -1201,9 +1241,12 @@ client.on('interactionCreate', async interaction => {
             let toplamMaas = 0;
             oyuncularim.forEach((f, i) => {
                 toplamMaas += f.maas;
-                liste += `${i+1}. ${f.name} | ${f.mevki} | Gol: ${f.gol} | Asist: ${f.asist}\n`;
+                let durum = "";
+                if (f.sakatlik > 0) durum = " 🚑 (Sakat)";
+                else if (f.cezali > 0) durum = " 🟥 (Cezalı)";
+                liste += `${i+1}. ${f.name} | ${f.mevki} | Gol: ${f.gol} | Asist: ${f.asist}${durum}\n`;
             });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADROM | ${kulup.isim}`).setDescription(liste).addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`🛡️ KADROM | ${kulup.isim}`).setDescription(liste || 'Kadronuzda oyuncu yok.').addFields({ name: '💸 Toplam Maaş', value: `€${toplamMaas.toLocaleString()}` }).setColor('#f1c40f')] });
         }
 
         if (commandName === 'takimlar') {
@@ -1268,7 +1311,14 @@ client.on('interactionCreate', async interaction => {
             const list = Object.values(db.oyuncular).filter(o => o.gol > 0).sort((a, b) => b.gol - a.gol).slice(0, 10);
             let s = "";
             list.forEach((o, i) => { s += `${i+1}. ${o.name} (${o.takim}) - ${o.gol} Gol\n`; });
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s || 'Gol yok').setColor('#e67e22')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('⚽ GOL KRALLIĞI').setDescription(s || 'Henüz gol atılmadı.').setColor('#e67e22')] });
+        }
+
+        if (commandName === 'asist-kralligi') {
+            const list = Object.values(db.oyuncular).filter(o => o.asist > 0).sort((a, b) => b.asist - a.asist).slice(0, 10);
+            let s = "";
+            list.forEach((o, i) => { s += `${i+1}. ${o.name} (${o.takim}) - ${o.asist} Asist\n`; });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🅰️ ASİST KRALLIĞI').setDescription(s || 'Henüz asist yapılmadı.').setColor('#9b59b6')] });
         }
 
         if (commandName === 'gol-sesi-kanal') {
