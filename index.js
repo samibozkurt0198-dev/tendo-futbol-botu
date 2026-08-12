@@ -533,9 +533,11 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(cmd => cmd.toJSON());
 
-const rest = new REST({ version: '10' }).setToken(process.env.DISCOD_TOKEN || process.env.DISCORD_TOKEN);
+const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
+const rest = new REST({ version: '10' }).setToken(token);
 
-client.once('ready', async () => {
+// clientReady kullanımı eklendi (DeprecationWarning uyarısını çözer)
+client.once('clientReady', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
     otomatikTakimlariVeFutbolculariYukle();
 
@@ -1442,4 +1444,4 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(process.env.DISCOD_TOKEN || process.env.DISCORD_TOKEN);
+client.login(token);
