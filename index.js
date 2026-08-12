@@ -82,7 +82,6 @@ const UNLU_TAKIMLAR = [
 ];
 
 const GUNCEL_FUTBOLCULAR = [
-    // Eklenen Yeni 50 Futbolcu (2026 Güncel)
     { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
     { isim: "Jude Bellingham", mevki: "OS", deger: 180 },
     { isim: "Erling Haaland", mevki: "SNT", deger: 180 },
@@ -133,28 +132,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Victor Boniface", mevki: "SNT", deger: 45 },
     { isim: "Riccardo Calafiori", mevki: "STP", deger: 45 },
     { isim: "Pau Cubarsi", mevki: "STP", deger: 40 },
-    
-    // Orijinal Liste
-    { isim: "Kylian Mbappe", mevki: "SNT", deger: 180 },
-    { isim: "Erling Haaland", mevki: "SNT", deger: 175 },
-    { isim: "Jude Bellingham", mevki: "OS", deger: 160 },
-    { isim: "Vinicius Junior", mevki: "KANAT", deger: 150 },
-    { isim: "Kevin De Bruyne", mevki: "OS", deger: 70 },
-    { isim: "Harry Kane", mevki: "SNT", deger: 90 },
-    { isim: "Mohamed Salah", mevki: "KANAT", deger: 75 },
-    { isim: "Bukayo Saka", mevki: "KANAT", deger: 130 },
-    { isim: "Phil Foden", mevki: "OS", deger: 130 },
-    { isim: "Rodri", mevki: "OS", deger: 110 },
-    { isim: "Declan Rice", mevki: "OS", deger: 120 },
-    { isim: "Florian Wirtz", mevki: "OS", deger: 130 },
-    { isim: "Jamal Musiala", mevki: "OS", deger: 130 },
-    { isim: "Federico Valverde", mevki: "OS", deger: 120 },
-    { isim: "Martin Ødegaard", mevki: "OS", deger: 110 },
-    { isim: "Lautaro Martinez", mevki: "SNT", deger: 110 },
-    { isim: "Victor Osimhen", mevki: "SNT", deger: 100 },
-    { isim: "Cole Palmer", mevki: "OS", deger: 90 },
-    { isim: "William Saliba", mevki: "STP", deger: 80 },
-    { isim: "Ruben Dias", mevki: "STP", deger: 80 },
     { isim: "Antonio Rüdiger", mevki: "STP", deger: 25 },
     { isim: "Virgil van Dijk", mevki: "STP", deger: 30 },
     { isim: "Thibaut Courtois", mevki: "KL", deger: 45 },
@@ -163,8 +140,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Ederson", mevki: "KL", deger: 35 },
     { isim: "Mike Maignan", mevki: "KL", deger: 35 },
     { isim: "Gianluigi Donnarumma", mevki: "KL", deger: 40 },
-    { isim: "Lamine Yamal", mevki: "KANAT", deger: 140 },
-    { isim: "Rodrygo", mevki: "KANAT", deger: 100 },
     { isim: "Rafael Leao", mevki: "KANAT", deger: 90 },
     { isim: "Khvicha Kvaratskhelia", mevki: "KANAT", deger: 85 },
     { isim: "Son Heung-min", mevki: "KANAT", deger: 50 },
@@ -177,40 +152,24 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Anthony Gordon", mevki: "KANAT", deger: 60 },
     { isim: "Nico Williams", mevki: "KANAT", deger: 70 },
     { isim: "Dani Olmo", mevki: "OS", deger: 60 },
-    { isim: "Alexis Mac Allister", mevki: "OS", deger: 75 },
     { isim: "Dominik Szoboszlai", mevki: "OS", deger: 75 },
     { isim: "Bruno Fernandes", mevki: "OS", deger: 65 },
     { isim: "Bernardo Silva", mevki: "OS", deger: 70 },
-    { isim: "Gavi", mevki: "OS", deger: 90 },
-    { isim: "Pedri", mevki: "OS", deger: 90 },
-    { isim: "Frenkie de Jong", mevki: "OS", deger: 70 },
     { isim: "Eduardo Camavinga", mevki: "OS", deger: 100 },
     { isim: "Aurelien Tchouameni", mevki: "OS", deger: 100 },
-    { isim: "Enzo Fernandez", mevki: "OS", deger: 75 },
-    { isim: "Moises Caicedo", mevki: "OS", deger: 75 },
     { isim: "Nicolo Barella", mevki: "OS", deger: 80 },
     { isim: "Hakan Çalhanoğlu", mevki: "OS", deger: 45 },
     { isim: "Joshua Kimmich", mevki: "OS", deger: 50 },
     { isim: "Leon Goretzka", mevki: "OS", deger: 30 },
     { isim: "Granit Xhaka", mevki: "OS", deger: 20 },
     { isim: "Alejandro Garnacho", mevki: "KANAT", deger: 50 },
-    { isim: "Julian Alvarez", mevki: "SNT", deger: 90 },
     { isim: "Alexander Isak", mevki: "SNT", deger: 75 },
     { isim: "Dusan Vlahovic", mevki: "SNT", deger: 65 },
     { isim: "Ollie Watkins", mevki: "SNT", deger: 65 },
     { isim: "Darwin Nunez", mevki: "SNT", deger: 70 },
     { isim: "Marcus Rashford", mevki: "KANAT", deger: 60 },
-    { isim: "Josko Gvardiol", mevki: "STP", deger: 75 },
-    { isim: "Ronald Araujo", mevki: "STP", deger: 70 },
-    { isim: "Pau Cubarsi", mevki: "STP", deger: 40 },
-    { isim: "Alessandro Bastoni", mevki: "STP", deger: 70 },
-    { isim: "Bremer", mevki: "STP", deger: 60 },
-    { isim: "Theo Hernandez", mevki: "DF", deger: 60 },
-    { isim: "Alphonso Davies", mevki: "DF", deger: 50 },
     { isim: "Jeremie Frimpong", mevki: "DF", deger: 50 },
-    { isim: "Trent Alexander-Arnold", mevki: "DF", deger: 70 },
     { isim: "Reece James", mevki: "DF", deger: 35 },
-    { isim: "Achraf Hakimi", mevki: "DF", deger: 65 },
     { isim: "Gregor Kobel", mevki: "KL", deger: 40 },
     { isim: "Diogo Costa", mevki: "KL", deger: 45 },
     { isim: "Jan Oblak", mevki: "KL", deger: 25 },
@@ -305,8 +264,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Federico Dimarco", mevki: "DF", deger: 50 },
     { isim: "Denzel Dumfries", mevki: "DF", deger: 25 },
     { isim: "Adrien Rabiot", mevki: "OS", deger: 35 },
-    { isim: "Teun Koopmeiners", mevki: "OS", deger: 50 },
-    { isim: "Douglas Luiz", mevki: "OS", deger: 55 },
     { isim: "Marcus Edwards", mevki: "KANAT", deger: 20 },
     { isim: "Orkun Kökçü", mevki: "OS", deger: 28 },
     { isim: "Ferdi Kadıoğlu", mevki: "DF", deger: 30 },
@@ -468,7 +425,7 @@ const commands = [
 
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
-    new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir. (/kadrom kullanılır)').
+    new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
     new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
     
@@ -1112,7 +1069,7 @@ client.on('interactionCreate', async interaction => {
             const dep = db.takimlar[options.getString('rakip-takim').trim().toLowerCase()];
             if (!dep) return interaction.reply({ content: '❌ Rakip takım bulunamadı!', flags: 64 });
 
-            db.kullanilanTahminler = {}; // Yeni maç için tahmin sıfırla
+            db.kullanilanTahminler = {};
             veriyiKaydet();
 
             await interaction.reply({ content: `⚔️ **${ev.isim} vs ${dep.isim}** maçı başlıyor!` });
@@ -1232,7 +1189,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '🔄 Lig ve istatistikler sıfırlandı.', flags: 64 });
         }
 
-    } typings => {} catch (err) {
+    } catch (err) {
         console.error(err);
     }
 });
