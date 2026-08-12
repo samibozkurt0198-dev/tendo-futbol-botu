@@ -6,7 +6,10 @@ const {
     Routes, 
     EmbedBuilder, 
     PermissionFlagsBits,
-    ChannelType 
+    ChannelType,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle 
 } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
@@ -44,6 +47,8 @@ let db = {
     aktifMaclar: {},
     sezonAktif: false,
     transferKanalId: null,
+    hosgeldinKanalId: null,
+    sponsorKanalId: null,
     otomatikSezonVerisi: null
 };
 
@@ -59,6 +64,8 @@ if (fs.existsSync(DB_FILE)) {
         if (dosyaVerisi.aktifMaclar) db.aktifMaclar = dosyaVerisi.aktifMaclar;
         if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
         if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
+        if (dosyaVerisi.hosgeldinKanalId) db.hosgeldinKanalId = dosyaVerisi.hosgeldinKanalId;
+        if (dosyaVerisi.sponsorKanalId) db.sponsorKanalId = dosyaVerisi.sponsorKanalId;
         if (dosyaVerisi.otomatikSezonVerisi) db.otomatikSezonVerisi = dosyaVerisi.otomatikSezonVerisi;
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
@@ -338,11 +345,26 @@ function kullanicininTakiminiBulVeyaAta(userId) {
 }
 
 const commands = [
-    // YENİ EKLENEN TWİTTER KOMUTU
     new SlashCommandBuilder()
         .setName('twitter')
         .setDescription('Sunucuda Twitter (X) formatında mesaj gönderir.')
         .addStringOption(opt => opt.setName('mesaj').setDescription('Tweet içeriği').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('rehber')
+        .setDescription('Sunucuda nasıl takım alacağını ve kadro kuracağını anlatan rehber menüsü.'),
+
+    new SlashCommandBuilder()
+        .setName('hosgeldin-kanal-ayarla')
+        .setDescription('Yeni gelen üyelerin karşılanacağı kanalı ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Kanal').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder()
+        .setName('sponsor-kanal-ayarla')
+        .setDescription('/sponsor komutunun kullanılabileceği özel kanalı ayarlar.')
+        .addChannelOption(opt => opt.setName('kanal').setDescription('Sponsor Kanalı').addChannelTypes(ChannelType.GuildText).setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder()
         .setName('kayıt')
@@ -432,7 +454,7 @@ const commands = [
     new SlashCommandBuilder().setName('puan-durumu').setDescription('Puan durumunu gösterir.'),
     new SlashCommandBuilder().setName('gol-kralligi').setDescription('Gol krallığını listeler.'),
     new SlashCommandBuilder().setName('kadrom').setDescription('Takımınızdaki futbolcuları gösterir.'),
-    new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız.'),
+    new SlashCommandBuilder().setName('sponsor').setDescription('Sponsorluk geliri alırsınız (Sadece sponsor kanalında).'),
     new SlashCommandBuilder().setName('butce').setDescription('Bütçenizi görüntüler.'),
     
     new SlashCommandBuilder()
@@ -468,6 +490,30 @@ client.once('ready', async () => {
         console.log('Slash komutları güncellendi.');
     } catch (error) {
         console.error('Komut yükleme hatası:', error);
+    }
+});
+
+client.on('guildMemberAdd', async member => {
+    if (!db.hosgeldinKanalId) return;
+    try {
+        const kanal = await member.guild.channels.fetch(db.hosgeldinKanalId).catch(() => null);
+        if (!kanal || kanal.type !== ChannelType.GuildText) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle('⚽ Sunucumuza Hoş Geldin!')
+            .setDescription(`Selam <@${member.id}>! Futbol ve lig simülasyonumuza hoş geldin.\n\n` +
+                `🏆 **Nasıl Başlayacaksın?**\n` +
+                `1️⃣ **\`/takim-sec\`** komutu ile kendine bir takım seçip Teknik Direktör ol.\n` +
+                `2️⃣ **\`/oto-ilk11\`** komutu ile takımına harika bir kadro kur.\n` +
+                `3️⃣ **\`/rehber\`** yazarak detaylı komut listesini ve ipuçlarını incele!\n\n` +
+                `İyi eğlenceler dileriz!`)
+            .setColor('#2ecc71')
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .setTimestamp();
+
+        await kanal.send({ content: `<@${member.id}> aramıza katıldı!`, embeds: [embed] }).catch(() => {});
+    } catch (e) {
+        console.error("Hoş geldin mesajı hatası:", e);
     }
 });
 
@@ -767,7 +813,6 @@ client.on('interactionCreate', async interaction => {
         if (!db.oyuncular) db.oyuncular = {};
         if (!db.takimlar) db.takimlar = {};
 
-        // 🐦 TWİTTER KOMUTU İŞLEYİCİSİ
         if (commandName === 'twitter') {
             const mesaj = options.getString('mesaj');
             const displayName = member ? member.displayName : user.username;
@@ -785,6 +830,34 @@ client.on('interactionCreate', async interaction => {
                 .setTimestamp();
 
             return interaction.reply({ embeds: [twitterEmbed] });
+        }
+
+        if (commandName === 'rehber') {
+            const rehberEmbed = new EmbedBuilder()
+                .setTitle('📖 TENDO LİGİ - OYUN REHBERİ')
+                .setDescription('Sunucumuzda nasıl teknik direktör olacağını ve ligde nasıl ilerleyeceğini öğrenmek için aşağıdaki adımları inceleyebilirsin!')
+                .addFields(
+                    { name: '1️⃣ Takım Seçimi', value: '`/takim-sec` komutu ile boşta olan bir kulübü seçerek direkt teknik direktör koltuğuna oturabilirsin.' },
+                    { name: '2️⃣ Kadro Kurulumu', value: '`/oto-ilk11` komutunu kullanarak kasandaki bütçeyle hızlıca harika bir 11 dizebilirsin.' },
+                    { name: '3️⃣ Maç Tahminleri', value: 'Canlı oynanan maçlarda `/tahmin` komutunu kullanarak skor bilebilir ve kulübüne ekstra **+50M€** kazandırabilirsin.' },
+                    { name: '4️⃣ Finans & Sponsor', value: '`/sponsor` komutuyla (yalnızca sponsor kanalında) düzenli **20M€** gelir elde edebilir, `/butce` komutuyla kasanı kontrol edebilirsin.' }
+                )
+                .setColor('#3498db')
+                .setFooter({ text: 'Tendo Bot Futbol Simülasyonu' });
+
+            return interaction.reply({ embeds: [rehberEmbed] });
+        }
+
+        if (commandName === 'hosgeldin-kanal-ayarla') {
+            db.hosgeldinKanalId = options.getChannel('kanal').id;
+            veriyiKaydet();
+            return interaction.reply({ content: '✅ Hoş geldin karşılama kanalı başarıyla ayarlandı!', flags: 64 });
+        }
+
+        if (commandName === 'sponsor-kanal-ayarla') {
+            db.sponsorKanalId = options.getChannel('kanal').id;
+            veriyiKaydet();
+            return interaction.reply({ content: '✅ Sponsor komutu kanalı başarıyla ayarlandı! Artık `/sponsor` sadece bu kanalda kullanılabilecek.', flags: 64 });
         }
 
         if (commandName === 'kayıt') {
@@ -1178,11 +1251,15 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (commandName === 'sponsor') {
+            if (db.sponsorKanalId && channel.id !== db.sponsorKanalId) {
+                return interaction.reply({ content: `❌ Bu komutu sadece <#${db.sponsorKanalId}> kanalında kullanabilirsin!`, flags: 64 });
+            }
+
             const k = kullanicininTakiminiBulVeyaAta(user.id);
-            const gelir = 4000000;
+            const gelir = 20000000;
             k.butce += gelir;
             veriyiKaydet();
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR').setDescription(`Kasaya €${gelir.toLocaleString()} eklendi.`).setColor('#f1c40f')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('💼 SPONSOR ANLAŞMASI').setDescription(`Kulüp kasasına başarıyla **€20,000,000** sponsor geliri eklendi!`).setColor('#f1c40f')] });
         }
 
         if (commandName === 'butce') {
