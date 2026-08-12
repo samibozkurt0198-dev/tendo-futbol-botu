@@ -336,20 +336,7 @@ function kullanicininTakiminiBulVeyaAta(userId) {
     let bul = Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
     if (bul) return bul;
 
-    let galatasaray = db.takimlar['galatasaray'];
-    if (galatasaray && (!galatasaray.kurucu || galatasaray.kurucu === "Sistem")) {
-        galatasaray.kurucu = temizId;
-        veriyiKaydet();
-        return galatasaray;
-    }
-
-    let bosTakim = Object.values(db.takimlar).find(t => !t.kurucu || t.kurucu === "Sistem");
-    if (bosTakim) {
-        bosTakim.kurucu = temizId;
-        veriyiKaydet();
-        return bosTakim;
-    }
-
+    // Otomatik takım atama mantığı hatalara yol açtığı için kaldırıldı.
     return null;
 }
 
@@ -536,7 +523,6 @@ const commands = [
 const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
 const rest = new REST({ version: '10' }).setToken(token);
 
-// clientReady kullanımı eklendi (DeprecationWarning uyarısını çözer)
 client.once('clientReady', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
     otomatikTakimlariVeFutbolculariYukle();
@@ -917,7 +903,6 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName, options, user, channel, guild, member } = interaction;
 
-    // Antrenman Komutu Özel Kanal Kontrolü
     if (commandName === 'antrenman' && db.antrenmanKanalId) {
         if (channel.id !== db.antrenmanKanalId) {
             return interaction.reply({
@@ -927,7 +912,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // Transfer Komutları Kanal Kontrolü
     const transferKomutlari = ['transfer-teklif', 'transfer-kabul', 'transfer-red', 'serbest-birak', 'futbolcu-havuzu'];
     if (transferKomutlari.includes(commandName) && db.transferKanalAyarlaId) {
         if (channel.id !== db.transferKanalAyarlaId) {
@@ -938,7 +922,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // Genel Bot Kanal Kontrolü
     const isBotChannel = db.botCalistirmaKanalId && channel.id === db.botCalistirmaKanalId;
     const isSponsorChannel = db.sponsorKanalId && channel.id === db.sponsorKanalId;
     const isAntrenmanChannel = db.antrenmanKanalId && channel.id === db.antrenmanKanalId;
@@ -1038,7 +1021,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'antrenman') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Önce bir takım seçmelisin!', flags: 64 });
+            if (!kulup) return interaction.reply({ content: '❌ Önce bir takım seçmelisin! (`/takim-sec`)', flags: 64 });
 
             const simdi = Date.now();
             const birSaat = 60 * 60 * 1000;
@@ -1063,7 +1046,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'kredi-cek') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Önce takım seçmelisin!', flags: 64 });
+            if (!kulup) return interaction.reply({ content: '❌ Önce bir takım seçmelisin! (`/takim-sec`)', flags: 64 });
 
             const miktarMilyon = options.getInteger('miktar');
             if (miktarMilyon <= 0) return interaction.reply({ content: '❌ Geçerli bir miktar girin.', flags: 64 });
@@ -1080,7 +1063,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'kredi-ode') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok.', flags: 64 });
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok. (`/takim-sec`)', flags: 64 });
 
             const miktarMilyon = options.getInteger('miktar');
             const gercekMiktar = miktarMilyon * 1000000;
@@ -1132,6 +1115,8 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'oto-ilk11') {
             await interaction.deferReply();
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.editReply({ content: '❌ Bir takımınız yok! Önce `/takim-sec` komutunu kullanın.' });
+
             const dizilisStr = options.getString('dizilis');
             const hedefButceMilyon = options.getInteger('butce');
             const hedefButceGercek = hedefButceMilyon * 1000000;
@@ -1235,6 +1220,8 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'serbest-birak') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok. (`/takim-sec`)', flags: 64 });
+
             const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()) && o.takim === kulup.isim);
             if (!f) return interaction.reply({ content: '❌ Oyuncu yok.', flags: 64 });
             f.takim = 'Serbest';
@@ -1244,6 +1231,8 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'transfer-teklif') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok. (`/takim-sec`)', flags: 64 });
+
             const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
             if (!f) return interaction.reply({ content: '❌ Oyuncu yok.', flags: 64 });
 
@@ -1255,8 +1244,9 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'transfer-kabul') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Takımınız yok. (`/takim-sec`)', flags: 64 });
+
             const f = Object.values(db.oyuncular).find(o => o.name.toLowerCase().includes(options.getString('futbolcu-adi').toLowerCase()));
-            
             if (!f) return interaction.reply({ content: '❌ Oyuncu bulunamadı.', flags: 64 });
 
             const teklif = db.transferPazari && db.transferPazari[f.id];
@@ -1289,6 +1279,8 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'kadrom') {
             const kulup = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!kulup) return interaction.reply({ content: '❌ Bir takımınız bulunmuyor! Önce `/takim-sec` kullanın.', flags: 64 });
+
             const oyuncularim = Object.values(db.oyuncular).filter(f => f.takim === kulup.isim);
             let liste = "";
             let toplamMaas = 0;
@@ -1324,8 +1316,11 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'mac-yap') {
             const ev = kullanicininTakiminiBulVeyaAta(user.id);
+            if (!ev) return interaction.reply({ content: '❌ Bir takımınız yok! Önce `/takim-sec` yapmalısınız.', flags: 64 });
+
             const dep = db.takimlar[options.getString('rakip-takim').trim().toLowerCase()];
-            if (!dep) return interaction.reply({ content: '❌ Rakip yok.', flags: 64 });
+            if (!dep) return interaction.reply({ content: '❌ Rakip takım bulunamadı.', flags: 64 });
+            
             db.kullanilanTahminler = {};
             veriyiKaydet();
             await interaction.reply({ content: `⚔️ ${ev.isim} vs ${dep.isim} maçı başlıyor!` });
@@ -1381,7 +1376,7 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'sponsor') {
             const k = kullanicininTakiminiBulVeyaAta(user.id);
-            if (!k) return interaction.reply({ content: '❌ Önce bir takım seçmelisin!', flags: 64 });
+            if (!k) return interaction.reply({ content: '❌ Önce bir takım seçmelisin! (`/takim-sec`)', flags: 64 });
 
             const simdi = Date.now();
             const birSaat = 60 * 60 * 1000;
@@ -1403,14 +1398,24 @@ client.on('interactionCreate', async interaction => {
 
         if (commandName === 'butce') {
             const k = kullanicininTakiminiBulVeyaAta(user.id);
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe`).setDescription(`Kasa: €${k.butce.toLocaleString()}\nKredi Borcu: €${(k.krediBorc || 0).toLocaleString()}`).setColor('#2ecc71')] });
+            if (!k) {
+                return interaction.reply({ content: '❌ Henüz bir takımınız bulunmuyor! Önce `/takim-sec` komutu ile bir takıma teknik direktör olmalısınız.', flags: 64 });
+            }
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle(`💰 Bütçe | ${k.isim}`).setDescription(`Kasa: €${k.butce.toLocaleString()}\nKredi Borcu: €${(k.krediBorc || 0).toLocaleString()}`).setColor('#2ecc71')] });
         }
 
         if (commandName === 'butce-ver') {
-            const t = db.takimlar[options.getString('takim-adi').trim().toLowerCase()];
-            t.butce += options.getInteger('miktar') * 1000000;
+            const takimInput = options.getString('takim-adi').trim().toLowerCase();
+            const miktar = options.getInteger('miktar');
+            const t = db.takimlar[takimInput];
+
+            if (!t) {
+                return interaction.reply({ content: `❌ **${options.getString('takim-adi')}** isimli takım sistemde bulunamadı!`, flags: 64 });
+            }
+
+            t.butce += miktar * 1000000;
             veriyiKaydet();
-            return interaction.reply({ content: '✅ Bütçe eklendi.', flags: 64 });
+            return interaction.reply({ content: `✅ **${t.isim}** takımına **+€${(miktar * 1000000).toLocaleString()}** bütçe eklendi. Güncel Kasa: **€${t.butce.toLocaleString()}**`, flags: 64 });
         }
 
         if (commandName === 'puan-durumu') {
