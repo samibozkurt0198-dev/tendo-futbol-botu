@@ -237,7 +237,6 @@ const GUNCEL_FUTBOLCULAR = [
     { isim: "Sandro Tonali", mevki: "OS", deger: 40 },
     { isim: "James Maddison", mevki: "OS", deger: 70 },
     { isim: "Dejan Kulusevski", mevki: "KANAT", deger: 55 },
-    { isim: "Son Heung-min", mevki: "KANAT", deger: 50 },
     { isim: "Richarlison", mevki: "SNT", deger: 35 },
     { isim: "Gabriel Jesus", mevki: "SNT", deger: 65 },
     { isim: "Kai Havertz", mevki: "SNT", deger: 75 },
@@ -340,9 +339,9 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Belirttiğin bütçeye uygun rastgele 11 oyuncu seçer.')
+        .setDescription('Belirttiğin bütçenin %95-99 unu kullanarak en iyi 11 oyuncuyu seçer.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
-        .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe üst sınırı (Milyon €)').setRequired(true)),
+        .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe (Milyon €)').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('11-onayla')
@@ -732,7 +731,14 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply({ content: `❌ Yeterli serbest oyuncu yok!` });
             }
 
-            // Rastgele oyuncu seçimi yaparak bütçe aşımını önleyen esnek sistem
+            // Bütçenin %95 - %99'unu hedefleme mantığı
+            const minHedefBonservis = hedefButceGercek * 0.95;
+            const maxHedefBonservis = hedefButceGercek * 0.99;
+
+            let enIyiSecimler = [];
+            let enIyiMaliyet = 0;
+            let enYakinFark = Infinity;
+
             const klListesi = serbestler.filter(o => o.mevki === 'KL');
             const dfListesi = serbestler.filter(o => o.mevki === 'DF' || o.mevki === 'STP');
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
@@ -742,79 +748,132 @@ client.on('interactionCreate', async interaction => {
                 return arr[Math.floor(Math.random() * arr.length)];
             }
 
-            let secilenler = [];
-            let toplamBonservis = 0;
+            // Doğru bütçe aralığını tutturmak için 1500 kez deneme yapar
+            for (let deneme = 0; deneme < 1500; deneme++) {
+                let secilenler = [];
+                let toplamBonservis = 0;
 
-            let secilenKl = rastgeleSec(klListesi.length > 0 ? klListesi : serbestler);
-            secilenler.push(secilenKl);
-            toplamBonservis += secilenKl.piyasaDegeri * 1000000;
+                let secilenKl = rastgeleSec(klListesi.length > 0 ? klListesi : serbestler);
+                secilenler.push(secilenKl);
+                toplamBonservis += secilenKl.piyasaDegeri * 1000000;
 
-            for (let i = 0; i < defSayisi; i++) {
-                let d = rastgeleSec(dfListesi.length > 0 ? dfListesi : serbestler);
-                while (secilenler.includes(d)) d = rastgeleSec(serbestler);
-                secilenler.push(d);
-                toplamBonservis += d.piyasaDegeri * 1000000;
-            }
-            for (let i = 0; i < osSayisi; i++) {
-                let o = rastgeleSec(osListesi.length > 0 ? osListesi : serbestler);
-                while (secilenler.includes(o)) o = rastgeleSec(serbestler);
-                secilenler.push(o);
-                toplamBonservis += o.piyasaDegeri * 1000000;
-            }
-            for (let i = 0; i < sntSayisi; i++) {
-                let s = rastgeleSec(sntListesi.length > 0 ? sntListesi : serbestler);
-                while (secilenler.includes(s)) s = rastgeleSec(serbestler);
-                secilenler.push(s);
-                toplamBonservis += s.piyasaDegeri * 1000000;
+                let basarili = true;
+                const seciliset = new Set([secilenKl.id]);
+
+                function oyuncuSec(liste) {
+                    let havuz = liste.length > 0 ? liste : serbestler;
+                    let filtrelenmis = havuz.filter(o => !seciliset.has(o.id));
+                    if (filtrelenmis.length === 0) filtrelenmis = serbestler.filter(o => !seciliset.has(o.id));
+                    if (filtrelenmis.length === 0) return null;
+                    let o = rastgeleSec(filtrelenmis);
+                    seciliset.add(o.id);
+                    return o;
+                }
+
+                for (let i = 0; i < defSayisi; i++) {
+                    let d = oyuncuSec(dfListesi);
+                    if (!d) { basarili = false; break; }
+                    secilenler.push(d);
+                    toplamBonservis += d.piyasaDegeri * 1000000;
+                }
+                if (!basarili) continue;
+
+                for (let i = 0; i < osSayisi; i++) {
+                    let o = oyuncuSec(osListesi);
+                    if (!o) { basarili = false; break; }
+                    secilenler.push(o);
+                    toplamBonservis += o.piyasaDegeri * 1000000;
+                }
+                if (!basarili) continue;
+
+                for (let i = 0; i < sntSayisi; i++) {
+                    let s = oyuncuSec(sntListesi);
+                    if (!s) { basarili = false; break; }
+                    secilenler.push(s);
+                    toplamBonservis += s.piyasaDegeri * 1000000;
+                }
+                if (!basarili) continue;
+
+                if (toplamBonservis <= hedefButceGercek) {
+                    let fark = hedefButceGercek - toplamBonservis;
+                    if (toplamBonservis >= minHedefBonservis && toplamBonservis <= maxHedefBonservis) {
+                        enIyiSecimler = secilenler;
+                        enIyiMaliyet = toplamBonservis;
+                        break;
+                    }
+                    if (fark < enYakinFark) {
+                        enYakinFark = fark;
+                        enIyiSecimler = secilenler;
+                        enIyiMaliyet = toplamBonservis;
+                    }
+                }
             }
 
-            if (toplamBonservis > hedefButceGercek) {
-                return interaction.editReply({ content: `❌ Seçilen rastgele kadronun maliyeti (**${(toplamBonservis/1000000).toFixed(1)}M€**) girdiğin bütçeyi (**${hedefButceMilyon}M€**) aştı. Lütfen bütçeyi biraz daha yüksek gir veya tekrar dene!` });
+            if (enIyiSecimler.length < 11) {
+                return interaction.editReply({ content: `❌ Bu bütçeye uygun kadro dizilemedi. Lütfen bütçeyi biraz daha esnet!` });
             }
 
             if (!db.gecici11ler) db.gecici11ler = {};
             db.gecici11ler[user.id] = {
                 takimIsmi: kulup.isim,
-                oyuncuIdleri: secilenler.map(o => o.id),
-                toplamMaliyet: toplamBonservis,
+                oyuncuIdleri: enIyiSecimler.map(o => o.id),
+                toplamMaliyet: enIyiMaliyet,
                 dizilis: dizilisStr
             };
             veriyiKaydet();
 
             let listeAciklama = "";
-            secilenler.forEach((oyuncu, index) => {
+            enIyiSecimler.forEach((oyuncu, index) => {
                 listeAciklama += `**${index + 1}. ${oyuncu.name}** (${oyuncu.mevki}) - **${oyuncu.piyasaDegeri}M€**\n`;
             });
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder()
                     .setTitle(`⚡ KADRO ÖNİZLEMESİ (${dizilisStr})`)
-                    .setDescription(`Toplam Maliyet: **${(toplamBonservis/1000000).toFixed(1)}M€** (Bütçe: ${hedefButceMilyon}M€)\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
+                    .setDescription(`Toplam Maliyet: **${(enIyiMaliyet/1000000).toFixed(1)}M€** (Hedef Bütçe: ${hedefButceMilyon}M€)\n\n${listeAciklama}\n\n👉 Onaylamak için: \`/11-onayla\``)
                     .setColor('#f1c40f')
                 ]
             });
         }
 
         if (commandName === '11-onayla') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) return interaction.reply({ content: '❌ Onay bekleyen kadro yok!', flags: 64 });
+            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
+                return interaction.reply({ content: '❌ Onay bekleyen kadro yok! Önce \`/oto-ilk11\` komutunu kullanmalısın.', flags: 64 });
+            }
             const veri = db.gecici11ler[user.id];
             const kulup = Object.values(db.takimlar).find(t => t.isim === veri.takimIsmi);
 
+            if (!kulup) {
+                delete db.gecici11ler[user.id];
+                veriyiKaydet();
+                return interaction.reply({ content: '❌ Takımınız bulunamadı.', flags: 64 });
+            }
+
+            if (kulup.butce < veri.toplamMaliyet) {
+                delete db.gecici11ler[user.id];
+                veriyiKaydet();
+                return interaction.reply({ content: '❌ Kulüp kasası bu kadro için yetersiz!', flags: 64 });
+            }
+
             kulup.butce -= veri.toplamMaliyet;
             veri.oyuncuIdleri.forEach(id => {
-                if (db.oyuncular[id]) db.oyuncular[id].takim = kulup.isim;
+                if (db.oyuncular[id]) {
+                    db.oyuncular[id].takim = kulup.isim;
+                }
             });
             delete db.gecici11ler[user.id];
             veriyiKaydet();
 
-            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO KURULDU!').setColor('#2ecc71')] });
+            return interaction.reply({ embeds: [new EmbedBuilder().setTitle('✅ KADRO BAŞARIYLA KURULDU!').setDescription(`Oyuncular **${kulup.isim}** takımına katıldı. Kalan Kasa: **${(kulup.butce/1000000).toFixed(1)}M€**`).setColor('#2ecc71')] });
         }
 
         if (commandName === '11-reddet') {
-            if (!db.gecici11ler || !db.gecici11ler[user.id]) return interaction.reply({ content: '❌ Kadro yok.', flags: 64 });
+            if (!db.gecici11ler || !db.gecici11ler[user.id]) {
+                return interaction.reply({ content: '❌ Reddedilecek onay bekleyen kadro yok.', flags: 64 });
+            }
             delete db.gecici11ler[user.id];
             veriyiKaydet();
-            return interaction.reply({ content: '❌ Reddedildi.', flags: 64 });
+            return interaction.reply({ content: '❌ Kadro teklifi reddedildi ve iptal edildi.', flags: 64 });
         }
 
         if (commandName === 'tahmin') {
