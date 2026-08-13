@@ -901,6 +901,7 @@ client.on('interactionCreate', async interaction => {
     // 1. BUTON ETKİLEŞİMLERİ
     if (interaction.isButton()) {
         const userId = String(interaction.user.id);
+        
         if (interaction.customId === 'onayla_11') {
             const veri = db.gecici11ler && db.gecici11ler[userId];
             if (!veri) {
@@ -1582,4 +1583,3 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(token);
-
