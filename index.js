@@ -460,8 +460,10 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder().setName('takimlar').setDescription('Ligdeki tüm takımları listeler.'),
+    
+    // YENİ ENTEGRASYON: takim-sec komutuna Autocomplete özelliği eklendi
     new SlashCommandBuilder().setName('takim-sec').setDescription('Bir takımın Teknik Direktörü olursunuz.')
-        .addStringOption(opt => opt.setName('takim-adi').setDescription('Takım adı').setRequired(true)),
+        .addStringOption(opt => opt.setName('takim-adi').setDescription('Seçmek istediğiniz boş takımı arayın').setRequired(true).setAutocomplete(true)),
     
     new SlashCommandBuilder()
         .setName('mac-yap')
@@ -527,7 +529,6 @@ const commands = [
 const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
 const rest = new REST({ version: '10' }).setToken(token);
 
-// 'ready' 'clientReady' olarak değiştirildi
 client.once('clientReady', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
     otomatikTakimlariVeFutbolculariYukle();
@@ -939,11 +940,27 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.isAutocomplete()) {
         const focusedOption = interaction.options.getFocused(true);
+        
         if (focusedOption.name === 'mac') {
             const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
             const filtrelenmis = aktifler.filter(m => m.toLowerCase().includes(focusedOption.value.toLowerCase())).slice(0, 25);
             await interaction.respond(
                 filtrelenmis.map(m => ({ name: m, value: m }))
+            ).catch(() => {});
+        }
+
+        // YENİ ENTEGRASYON: /takim-sec yazılırken SADECE boş olan takımları önerir
+        if (focusedOption.name === 'takim-adi') {
+            const tumTakimlar = Object.values(db.takimlar || {});
+            const bosTakimlar = tumTakimlar.filter(t => !t.kurucu || String(t.kurucu).trim() === "");
+            const arama = focusedOption.value.toLowerCase();
+
+            const filtrelenmis = bosTakimlar
+                .filter(t => t.isim.toLowerCase().includes(arama))
+                .slice(0, 25);
+
+            await interaction.respond(
+                filtrelenmis.map(t => ({ name: t.isim, value: t.isim }))
             ).catch(() => {});
         }
         return;
@@ -1386,11 +1403,23 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ embeds: [new EmbedBuilder().setTitle('🛡️ TAKIMLAR').setDescription(liste).setColor('#3498db')] });
         }
 
+        // YENİ ENTEGRASYON: takim-sec komut kontrolü
         if (commandName === 'takim-sec') {
             const takimAdiInput = options.getString('takim-adi').trim();
             const targetKey = takimAdiInput.toLowerCase();
             const userIdStr = String(user.id);
 
+            const secilmekIstenenTakim = db.takimlar[targetKey];
+
+            // Eğer takım sistemde varsa ve Teknik Direktörü zaten atanmışsa engelle
+            if (secilmekIstenenTakim && secilmekIstenenTakim.kurucu && String(secilmekIstenenTakim.kurucu).trim() !== "" && String(secilmekIstenenTakim.kurucu).trim() !== userIdStr) {
+                return interaction.reply({ 
+                    content: `❌ **${secilmekIstenenTakim.isim}** takımının zaten bir Teknik Direktörü var (<@${secilmekIstenenTakim.kurucu}>)! Lütfen T.D.'si olmayan boş bir takım seçin.`, 
+                    flags: 64 
+                });
+            }
+
+            // Kullanıcının daha önceki bir takımı varsa boşa çıkar
             Object.values(db.takimlar).forEach(t => {
                 if (t.kurucu && String(t.kurucu).trim() === userIdStr) {
                     t.kurucu = null;
