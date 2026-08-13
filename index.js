@@ -18,7 +18,7 @@ require('dotenv').config();
 
 // Web Sunucusu (7/24 Uptime İçin)
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Tendo Bot 7/24 Aktif!');
 });
 
@@ -59,32 +59,25 @@ let db = {
 if (fs.existsSync(DB_FILE)) {
     try {
         const dosyaVerisi = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (dosyaVerisi.oyuncular) db.oyuncular = dosyaVerisi.oyuncular;
-        if (dosyaVerisi.takimlar) db.takimlar = dosyaVerisi.takimlar;
-        if (dosyaVerisi.transferPazari) db.transferPazari = dosyaVerisi.transferPazari;
-        if (dosyaVerisi.gecici11ler) db.gecici11ler = dosyaVerisi.gecici11ler;
-        if (dosyaVerisi.macTahminleri) db.macTahminleri = dosyaVerisi.macTahminleri;
-        if (dosyaVerisi.kullanilanTahminler) db.kullanilanTahminler = dosyaVerisi.kullanilanTahminler;
-        if (dosyaVerisi.aktifMaclar) db.aktifMaclar = dosyaVerisi.aktifMaclar;
-        if (dosyaVerisi.sezonAktif !== undefined) db.sezonAktif = dosyaVerisi.sezonAktif;
-        if (dosyaVerisi.transferKanalId) db.transferKanalId = dosyaVerisi.transferKanalId;
-        if (dosyaVerisi.transferKanalAyarlaId) db.transferKanalAyarlaId = dosyaVerisi.transferKanalAyarlaId;
-        if (dosyaVerisi.hosgeldinKanalId) db.hosgeldinKanalId = dosyaVerisi.hosgeldinKanalId;
-        if (dosyaVerisi.sponsorKanalId) db.sponsorKanalId = dosyaVerisi.sponsorKanalId;
-        if (dosyaVerisi.botCalistirmaKanalId) db.botCalistirmaKanalId = dosyaVerisi.botCalistirmaKanalId;
-        if (dosyaVerisi.antrenmanKanalId) db.antrenmanKanalId = dosyaVerisi.antrenmanKanalId;
-        if (dosyaVerisi.otomatikSezonVerisi) db.otomatikSezonVerisi = dosyaVerisi.otomatikSezonVerisi;
+        db = { ...db, ...dosyaVerisi };
     } catch (e) {
         console.error("Veritabanı okuma hatası:", e);
     }
 }
 
+let isSaving = false;
 function veriyiKaydet() {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-    } catch (e) {
-        console.error("Veri kaydetme hatası:", e);
-    }
+    if (isSaving) return;
+    isSaving = true;
+    setTimeout(() => {
+        try {
+            fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+        } catch (e) {
+            console.error("Veri kaydetme hatası:", e);
+        } finally {
+            isSaving = false;
+        }
+    }, 500);
 }
 
 const UNLU_TAKIMLAR = [
@@ -295,12 +288,7 @@ function otomatikTakimlariVeFutbolculariYukle() {
             db.takimlar[key] = {
                 isim: takimIsmi,
                 kurucu: null,
-                puan: 0,
-                av: 0,
-                o: 0,
-                g: 0,
-                b: 0,
-                m: 0,
+                puan: 0, av: 0, o: 0, g: 0, b: 0, m: 0,
                 butce: 150000000,
                 sonSponsor: 0,
                 sonAntrenman: 0,
@@ -338,11 +326,7 @@ function otomatikTakimlariVeFutbolculariYukle() {
 function kullanicininTakiminiBulVeyaAta(userId) {
     if (!userId || !db.takimlar) return null;
     const temizId = String(userId).trim();
-    
-    let bul = Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId);
-    if (bul) return bul;
-
-    return null;
+    return Object.values(db.takimlar).find(t => t.kurucu && String(t.kurucu).trim() === temizId) || null;
 }
 
 const commands = [
@@ -418,13 +402,8 @@ const commands = [
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
         .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe (Milyon €)').setRequired(true)),
 
-    new SlashCommandBuilder()
-        .setName('11-onayla')
-        .setDescription('Önizlemesi yapılan otomatik ilk 11 kadrosunu onaylayıp takımınıza katar.'),
-
-    new SlashCommandBuilder()
-        .setName('11-reddet')
-        .setDescription('Önizlemesi yapılan otomatik ilk 11 teklifini reddeder.'),
+    new SlashCommandBuilder().setName('11-onayla').setDescription('Önizlemesi yapılan otomatik ilk 11 kadrosunu onaylayıp takımınıza katar.'),
+    new SlashCommandBuilder().setName('11-reddet').setDescription('Önizlemesi yapılan otomatik ilk 11 teklifini reddeder.'),
 
     new SlashCommandBuilder()
         .setName('tahmin')
@@ -526,7 +505,7 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(cmd => cmd.toJSON());
 
-const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
+const token = process.env.DISCORD_TOKEN;
 const rest = new REST({ version: '10' }).setToken(token);
 
 client.once('ready', async () => {
@@ -593,23 +572,16 @@ function futbolcuSecPozisyonaGore(takimAdi, tip, haricId = null) {
         const defansVeKL = havuz.filter(o => o.mevki === 'STP' || o.mevki === 'DF' || o.mevki === 'KL');
 
         const sans = Math.random();
-        if (sans < 0.75 && sntVeyaKanat.length > 0) {
-            return sntVeyaKanat[Math.floor(Math.random() * sntVeyaKanat.length)];
-        } else if (sans < 0.93 && ortaSaha.length > 0) {
-            return ortaSaha[Math.floor(Math.random() * ortaSaha.length)];
-        } else if (defansVeKL.length > 0) {
-            return defansVeKL[Math.floor(Math.random() * defansVeKL.length)];
-        }
+        if (sans < 0.75 && sntVeyaKanat.length > 0) return sntVeyaKanat[Math.floor(Math.random() * sntVeyaKanat.length)];
+        if (sans < 0.93 && ortaSaha.length > 0) return ortaSaha[Math.floor(Math.random() * ortaSaha.length)];
+        if (defansVeKL.length > 0) return defansVeKL[Math.floor(Math.random() * defansVeKL.length)];
     } else if (tip === "asist") {
         const osVeyaKanat = havuz.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
         const digerleri = havuz.filter(o => o.mevki !== 'OS' && o.mevki !== 'KANAT');
 
         const sans = Math.random();
-        if (sans < 0.80 && osVeyaKanat.length > 0) {
-            return osVeyaKanat[Math.floor(Math.random() * osVeyaKanat.length)];
-        } else if (digerleri.length > 0) {
-            return digerleri[Math.floor(Math.random() * digerleri.length)];
-        }
+        if (sans < 0.80 && osVeyaKanat.length > 0) return osVeyaKanat[Math.floor(Math.random() * osVeyaKanat.length)];
+        if (digerleri.length > 0) return digerleri[Math.floor(Math.random() * digerleri.length)];
     }
 
     return havuz[Math.floor(Math.random() * havuz.length)];
@@ -848,7 +820,8 @@ function istatistikGuncelle(ev, dep, evSkor, depSkor, channel) {
 async function otomatikSezonBaslatGenel(channel, guild) {
     let aktifTakimlar = Object.values(db.takimlar).filter(t => t.kurucu && t.kurucu !== "Sistem");
     if (aktifTakimlar.length < 5) {
-        return channel.send({ embeds: [new EmbedBuilder().setTitle('❌ SEZON BAŞLATILAMADI').setDescription('Lig sezonunu başlatabilmek için en az **5 takımın** sahibi (Teknik Direktörü) olmalıdır!').setColor('#e74c3c')] });
+        const errEmbed = new EmbedBuilder().setTitle('❌ SEZON BAŞLATILAMADI').setDescription('Lig sezonunu başlatabilmek için en az **5 takımın** sahibi (Teknik Direktörü) olmalıdır!').setColor('#e74c3c');
+        return channel.send({ embeds: [errEmbed] });
     }
 
     db.otomatikSezonVerisi = { durduruldu: false };
@@ -1070,7 +1043,7 @@ client.on('interactionCreate', async interaction => {
             if (sub === 'sezon-baslat') {
                 await interaction.deferReply();
                 await otomatikSezonBaslatGenel(channel, guild);
-                return;
+                return interaction.followUp({ content: "⚽ Sezon başlatma işlemi başlatıldı." });
             }
 
             const aktifler = db.aktifMaclar ? Object.values(db.aktifMaclar) : [];
@@ -1477,7 +1450,23 @@ client.on('interactionCreate', async interaction => {
                 }
             });
             veriyiKaydet();
-            await interaction.editReply({ content: `🚀 3 Takımlı Sezon Başlatıldı!` });
+
+            await interaction.editReply({ content: `🚀 3 Takımlı Sezon Başlatıldı! Maçlar Simüle Ediliyor...` });
+
+            // 3 Takım Arasında Çift Devreli Maçlar
+            const fikstur3 = [
+                { ev: takimlarVerisi[0].isim, dep: takimlarVerisi[1].isim },
+                { ev: takimlarVerisi[1].isim, dep: takimlarVerisi[2].isim },
+                { ev: takimlarVerisi[2].isim, dep: takimlarVerisi[0].isim },
+                { ev: takimlarVerisi[1].isim, dep: takimlarVerisi[0].isim },
+                { ev: takimlarVerisi[2].isim, dep: takimlarVerisi[1].isim },
+                { ev: takimlarVerisi[0].isim, dep: takimlarVerisi[2].isim }
+            ];
+
+            for (const m of fikstur3) {
+                await tekilCanliMacOyna(channel, m.ev, m.dep, guild);
+                await new Promise(r => setTimeout(r, 3000));
+            }
             return;
         }
 
@@ -1560,11 +1549,12 @@ client.on('interactionCreate', async interaction => {
         if (commandName === 'sezon-baslat') {
             await interaction.deferReply();
             await otomatikSezonBaslatGenel(channel, guild);
-            return;
+            return interaction.followUp({ content: "⚽ Sezon süreci tamamlandı." });
         }
 
         if (commandName === 'sezon-durdur') {
             db.sezonAktif = false;
+            if (db.otomatikSezonVerisi) db.otomatikSezonVerisi.durduruldu = true;
             veriyiKaydet();
             return interaction.reply({ content: '🛑 Sezon durduruldu.', ephemeral: true });
         }
@@ -1579,6 +1569,9 @@ client.on('interactionCreate', async interaction => {
 
     } catch (err) {
         console.error("Komut işleme hatası:", err);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ İşlem sırasında bir hata oluştu.', ephemeral: true }).catch(() => {});
+        }
     }
 });
 
