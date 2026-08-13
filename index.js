@@ -527,7 +527,8 @@ const commands = [
 const token = process.env.DISCORD_TOKEN || process.env.DISCOD_TOKEN;
 const rest = new REST({ version: '10' }).setToken(token);
 
-client.once('ready', async () => {
+// 'ready' 'clientReady' olarak değiştirildi
+client.once('clientReady', async () => {
     console.log(`Bot ${client.user.tag} olarak giriş yaptı!`);
     otomatikTakimlariVeFutbolculariYukle();
 
@@ -1550,4 +1551,3 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(token);
-
