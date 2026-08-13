@@ -413,7 +413,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('oto-ilk11')
-        .setDescription('Belirttiğin bütçenin %95-99 unu kullanarak en iyi 11 oyuncuyu seçer.')
+        .setDescription('Belirttiğin bütçenin %97-99 unu kullanarak en iyi 11 oyuncuyu seçer.')
         .addStringOption(opt => opt.setName('dizilis').setDescription('Örn: 4-3-3, 4-4-2').setRequired(true))
         .addIntegerOption(opt => opt.setName('butce').setDescription('Harcanacak toplam bütçe (Milyon €)').setRequired(true)),
 
@@ -1179,6 +1179,8 @@ client.on('interactionCreate', async interaction => {
 
             if (serbestler.length < 11) return interaction.editReply({ content: '❌ Yeterli serbest oyuncu yok!' });
 
+            const altLimit = hedefButceGercek * 0.97;
+            
             let enIyiSecimler = [];
             let enIyiMaliyet = 0;
 
@@ -1187,7 +1189,7 @@ client.on('interactionCreate', async interaction => {
             const osListesi = serbestler.filter(o => o.mevki === 'OS' || o.mevki === 'KANAT');
             const sntListesi = serbestler.filter(o => o.mevki === 'SNT');
 
-            for (let deneme = 0; deneme < 1000; deneme++) {
+            for (let deneme = 0; deneme < 3000; deneme++) {
                 let secilenler = [];
                 let toplamBonservis = 0;
                 let seciliset = new Set();
@@ -1195,12 +1197,13 @@ client.on('interactionCreate', async interaction => {
                 function rastgeleSec(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
                 let kl = rastgeleSec(klListesi.length ? klListesi : serbestler);
-                secilenler.push(kl); seciliset.add(kl.id);
+                secilenler.push(kl); 
+                seciliset.add(kl.id);
                 toplamBonservis += kl.piyasaDegeri * 1000000;
 
                 let basarili = true;
                 function ekle(liste, adet) {
-                    for(let i=0; i<adet; i++) {
+                    for(let i = 0; i < adet; i++) {
                         let havuz = (liste.length ? liste : serbestler).filter(o => !seciliset.has(o.id));
                         if(!havuz.length) { basarili = false; break; }
                         let o = rastgeleSec(havuz);
@@ -1215,16 +1218,25 @@ client.on('interactionCreate', async interaction => {
                 ekle(sntListesi, parcalar[2]);
 
                 if (basarili && toplamBonservis <= hedefButceGercek) {
-                    enIyiSecimler = secilenler;
-                    enIyiMaliyet = toplamBonservis;
-                    break;
+                    if (toplamBonservis > enIyiMaliyet) {
+                        enIyiMaliyet = toplamBonservis;
+                        enIyiSecimler = secilenler;
+                    }
+                    if (toplamBonservis >= altLimit) {
+                        break;
+                    }
                 }
             }
 
-            if (enIyiSecimler.length < 11) return interaction.editReply({ content: '❌ Bu bütçeye uygun kadro bulunamadı.' });
+            if (enIyiSecimler.length < 11) return interaction.editReply({ content: '❌ Bu bütçeye veya dizilişe uygun kadro bulunamadı.' });
 
             if (!db.gecici11ler) db.gecici11ler = {};
-            db.gecici11ler[String(user.id)] = { takimIsmi: kulup.isim, oyuncuIdleri: enIyiSecimler.map(o => o.id), toplamMaliyet: enIyiMaliyet, dizilis: dizilisStr };
+            db.gecici11ler[String(user.id)] = { 
+                takimIsmi: kulup.isim, 
+                oyuncuIdleri: enIyiSecimler.map(o => o.id), 
+                toplamMaliyet: enIyiMaliyet, 
+                dizilis: dizilisStr 
+            };
             veriyiKaydet();
 
             let liste = "";
@@ -1235,8 +1247,13 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId('reddet_11').setLabel('❌ İptal Et').setStyle(ButtonStyle.Danger)
             );
 
+            const kullanimOrani = ((enIyiMaliyet / hedefButceGercek) * 100).toFixed(1);
+
             return interaction.editReply({ 
-                embeds: [new EmbedBuilder().setTitle(`⚡ KADRO ÖNİZLEMESİ | ${kulup.isim}`).setDescription(`Maliyet: **${(enIyiMaliyet/1000000).toFixed(1)}M€**\n\n${liste}\n\nAşağıdaki butonlardan onaylayabilir veya \`/11-onayla\` yazabilirsiniz.`).setColor('#f1c40f')],
+                embeds: [new EmbedBuilder()
+                    .setTitle(`⚡ KADRO ÖNİZLEMESİ | ${kulup.isim}`)
+                    .setDescription(`💰 **Hedef Bütçe:** ${(hedefButceMilyon)}M€\n📊 **Harcanan:** ${(enIyiMaliyet/1000000).toFixed(1)}M€ (%${kullanimOrani} Kullanıldı)\n\n${liste}\n\nAşağıdaki butonlardan onaylayabilir veya \`/11-onayla\` yazabilirsiniz.`)
+                    .setColor('#f1c40f')],
                 components: [row]
             });
         }
@@ -1373,14 +1390,12 @@ client.on('interactionCreate', async interaction => {
             const targetKey = takimAdiInput.toLowerCase();
             const userIdStr = String(user.id);
 
-            // 1. Kullanıcının daha önceden almış olduğu başka bir takım varsa onun kuruculuğunu kaldır
             Object.values(db.takimlar).forEach(t => {
                 if (t.kurucu && String(t.kurucu).trim() === userIdStr) {
                     t.kurucu = null;
                 }
             });
 
-            // 2. Hedef takım daha önce açılmamışsa oluştur, açılmışsa kurucusunu yeni kullanıcı yap
             if (!db.takimlar[targetKey]) {
                 db.takimlar[targetKey] = { 
                     isim: takimAdiInput, 
@@ -1535,3 +1550,4 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(token);
+
