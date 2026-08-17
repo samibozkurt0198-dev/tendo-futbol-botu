@@ -15,19 +15,12 @@ const {
 const http = require('http');
 require('dotenv').config();
 
-// ==========================================
-// 1. WEB SUNUCUSU (7/24 Uptime Sağlayıcı)
-// ==========================================
+// Web Sunucusu (7/24 Uptime)
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Tendo League Mega Sistem 7/24 Aktif!');
-}).listen(process.env.PORT || 3000, () => {
-    console.log('🌐 Web sunucusu dinleniyor...');
-});
+    res.end('Tendo League Mega Altyapı 7/24 Aktif!');
+}).listen(process.env.PORT || 3000);
 
-// ==========================================
-// 2. BOT İSTEMCİSİ VE BELLEK VERİTABANI
-// ==========================================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -39,122 +32,117 @@ const client = new Client({
 });
 
 const playerData = new Map();
-const activeQuizzes = new Map();
 const clubData = new Map();
-
-// Varsayılan Takım Bilgileri
-clubData.set('realmadrid', {
-    name: 'Real Madrid',
-    budget: 951.1,
-    manager: 'Kenan Papi',
-    squad: [
-        { name: 'Tchouaméni', pos: 'DOS', val: 200 },
-        { name: 'B.Šeško', pos: 'SNT', val: 109.5 },
-        { name: 'Kenan Papi', pos: 'OS', val: 150 }
-    ]
-});
-
-clubData.set('barcelona', {
-    name: 'Barcelona',
-    budget: 780.3,
-    manager: 'Atanmadı',
-    squad: [
-        { name: 'D.Núñez', pos: 'SNT', val: 200 },
-        { name: 'Joao Neves', pos: 'OS', val: 200 },
-        { name: 'Hagi', pos: 'OOS', val: 150 }
-    ]
-});
 
 function getPlayer(id, username) {
     if (!playerData.has(id)) {
-        playerData.set(id, {
-            name: username,
-            team: 'Serbest',
-            role: 'Kayıtsız',
-            value: 20.0,
-            antCount: 0,
-            antCd: 0,
-            penCd: 0
-        });
+        playerData.set(id, { name: username, team: 'Serbest', role: 'Kayıtsız', value: 20.0, antCount: 0, antCd: 0, penCd: 0 });
     }
     return playerData.get(id);
 }
 
 client.on('ready', () => {
-    console.log(`🤖 ${client.user.tag} Altyapı Botu Tam Kapasite Aktif!`);
+    console.log(`🤖 ${client.user.tag} Dev Kadro ve Kanal Sistemiyle Aktif!`);
 });
 
-// ==========================================
-// 3. SUNUCUYA KATILANLARA OTOMATİK ROL
-// ==========================================
+// Otomatik Kayıtsız Rolü
 client.on('guildMemberAdd', async (member) => {
     try {
         const unregRole = member.guild.roles.cache.find(r => r.name === 'Kayıtsız');
         if (unregRole) await member.roles.add(unregRole);
     } catch (e) {
-        console.error('Otomatik rol verme hatası:', e);
+        console.error('Rol verme hatası:', e);
     }
 });
 
-// ==========================================
-// 4. MESAJ DİNLENİCİSİ VE LİG KOMUTLARI
-// ==========================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const args = message.content.trim().split(/ +/);
     const command = args[0].toLowerCase();
 
-    // --- OTOMATİK KURULUM KOMUTU (.kur) ---
+    // ==========================================
+    // 1. TAM OTOMATİK DEV KURULUM (.kur)
+    // ==========================================
     if (command === '.kur') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('❌ Bu komutu sadece Yöneticiler kullanabilir!');
+            return message.reply('❌ Bu komutu sadece **Yöneticiler** kullanabilir!');
         }
 
-        const statusMsg = await message.channel.send('⏳ **Tendo League Kurulumu Başlatılıyor...**');
+        const statusMsg = await message.channel.send('⏳ **Eski kanallar siliniyor, dev lig altyapısı ve izinleri kuruluyor...**');
 
         try {
-            // Roller
+            // A) ESKİ KANALLARI SİLME
+            const existingChannels = await message.guild.channels.fetch();
+            for (const [id, ch] of existingChannels) {
+                if (ch && ch.deletable && ch.id !== message.channel.id) {
+                    await ch.delete().catch(() => {});
+                }
+            }
+
+            // B) ROLLERİ OLUŞTURMA
             const unregRole = await message.guild.roles.create({ name: 'Kayıtsız', color: '#808080' });
             const playerRole = await message.guild.roles.create({ name: 'Futbolcu', color: '#1abc9c' });
             const tdRole = await message.guild.roles.create({ name: 'Teknik Direktör', color: '#e67e22' });
-            const adminRole = await message.guild.roles.create({ name: 'Lig Yetkilisi', color: '#e74c3c' });
+            const regAuthRole = await message.guild.roles.create({ name: 'Kayıt Yetkilisi', color: '#3498db' });
+            const valAuthRole = await message.guild.roles.create({ name: 'Değer Yetkilisi', color: '#f1c40f' });
+            const adminRole = await message.guild.roles.create({ name: 'Lig Yönetimi', color: '#e74c3c' });
 
-            // Kategoriler
-            const catLeague = await message.guild.channels.create({ name: '🏆 TENDO LEAGUE 🏆', type: ChannelType.GuildCategory });
-            const catMedia = await message.guild.channels.create({ name: '📢 DUYURU VE MEDYA', type: ChannelType.GuildCategory });
+            // C) KANAL İZİN YAPISI (Permission Overwrites)
+            // Kayıtsızlar Sadece Kayıt Kanalını Görsün, Diğerlerini Göremesin
+            const denyUnregistered = [
+                { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: unregRole.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: playerRole.id, allow: [PermissionFlagsBits.ViewChannel] },
+                { id: tdRole.id, allow: [PermissionFlagsBits.ViewChannel] }
+            ];
 
-            // Tum Kanallar
-            await message.guild.channels.create({ name: '📢・duyurular', type: ChannelType.GuildText, parent: catMedia.id });
-            await message.guild.channels.create({ name: '🚀・booster', type: ChannelType.GuildText, parent: catMedia.id });
-            await message.guild.channels.create({ name: '📚・sistemler', type: ChannelType.GuildText, parent: catMedia.id });
-            await message.guild.channels.create({ name: '💬・sohbet', type: ChannelType.GuildText, parent: catLeague.id });
-            await message.guild.channels.create({ name: '🤖・bot-komut', type: ChannelType.GuildText, parent: catLeague.id });
-            await message.guild.channels.create({ name: '📝・şikayet-öneri', type: ChannelType.GuildText, parent: catLeague.id });
-            await message.guild.channels.create({ name: '🎮・eğlence', type: ChannelType.GuildText, parent: catLeague.id });
-            await message.guild.channels.create({ name: '🔄・transfer-yapma-kanalı', type: ChannelType.GuildText, parent: catLeague.id });
-            
-            const chAntrenman = await message.guild.channels.create({
-                name: '🏋️・antrenman',
-                type: ChannelType.GuildText,
-                parent: catLeague.id,
-                rateLimitPerUser: 3600 // 1 Saatlik Yavaş Mod
-            });
+            const allowOnlyUnregistered = [
+                { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: unregRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                { id: regAuthRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+            ];
 
-            await message.guild.channels.create({ name: '📅・takvim', type: ChannelType.GuildText, parent: catLeague.id });
+            // D) KATEGORİLER VE BOL KANALLAR
+            // 1. BİLGİ VE BÜLTEN
+            const catInfo = await message.guild.channels.create({ name: '📢 BİLGİLENDİRME', type: ChannelType.GuildCategory, permissionOverwrites: denyUnregistered });
+            await message.guild.channels.create({ name: '📢・duyurular', type: ChannelType.GuildText, parent: catInfo.id });
+            await message.guild.channels.create({ name: '📜・kurallar', type: ChannelType.GuildText, parent: catInfo.id });
+            await message.guild.channels.create({ name: '📚・sistemler', type: ChannelType.GuildText, parent: catInfo.id });
+            await message.guild.channels.create({ name: '🚀・booster-özel', type: ChannelType.GuildText, parent: catInfo.id });
+
+            // 2. LİSANS VE KAYIT ŞEHRİ
+            const catReg = await message.guild.channels.create({ name: '📝 LİSANS VE KAYIT', type: ChannelType.GuildCategory });
+            const chKayit = await message.guild.channels.create({ name: '📝・kayıt-şehri', type: ChannelType.GuildText, parent: catReg.id, permissionOverwrites: allowOnlyUnregistered });
+            await message.guild.channels.create({ name: '📋・kayıt-log', type: ChannelType.GuildText, parent: catReg.id, permissionOverwrites: denyUnregistered });
+
+            // 3. SOYUNMA ODASI VE TOPLULUK
+            const catGen = await message.guild.channels.create({ name: '💬 SOYUNMA ODASI', type: ChannelType.GuildCategory, permissionOverwrites: denyUnregistered });
+            await message.guild.channels.create({ name: '💬・genel-sohbet', type: ChannelType.GuildText, parent: catGen.id });
+            await message.guild.channels.create({ name: '🤖・bot-komut', type: ChannelType.GuildText, parent: catGen.id });
+            await message.guild.channels.create({ name: '🎮・eğlence', type: ChannelType.GuildText, parent: catGen.id });
+            await message.guild.channels.create({ name: '📸・medya-paylaşım', type: ChannelType.GuildText, parent: catGen.id });
+
+            // 4. LİG VE PERFORMANS SAHASI
+            const catLeague = await message.guild.channels.create({ name: '🏆 LİG BÖLGESİ', type: ChannelType.GuildCategory, permissionOverwrites: denyUnregistered });
+            const chAntrenman = await message.guild.channels.create({ name: '🏋️・antrenman', type: ChannelType.GuildText, parent: catLeague.id, rateLimitPerUser: 3600 });
+            const chPenalti = await message.guild.channels.create({ name: '⚽・penaltı-sahası', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '🏟️・maç-sahası', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '📅・fikstür-takvim', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '📊・puan-durumu', type: ChannelType.GuildText, parent: catLeague.id });
             await message.guild.channels.create({ name: '🌧️・hava-durumu', type: ChannelType.GuildText, parent: catLeague.id });
-            
-            const chKayit = await message.guild.channels.create({ 
-                name: '📝・kayıt-şehri', 
-                type: ChannelType.GuildText, 
-                parent: catLeague.id 
-            });
 
-            // Kayit Paneli
+            // 5. BORSASI VE TRANSFER
+            const catTransfer = await message.guild.channels.create({ name: '🔄 TRANSFER BORSASI', type: ChannelType.GuildCategory, permissionOverwrites: denyUnregistered });
+            await message.guild.channels.create({ name: '🔁・transfer-duyuru', type: ChannelType.GuildText, parent: catTransfer.id });
+            await message.guild.channels.create({ name: '💰・oyuncu-piyasası', type: ChannelType.GuildText, parent: catTransfer.id });
+            await message.guild.channels.create({ name: '🤝・sponsor-anlaşmaları', type: ChannelType.GuildText, parent: catTransfer.id });
+
+            // Kayıt Paneli Butonları
             const regEmbed = new EmbedBuilder()
-                .setTitle('📝 Tendo League Lisans Kayıt Paneli')
+                .setTitle('📝 Tendo League Lisans Başvurusu')
                 .setColor('#2b2d31')
-                .setDescription('Ligimize hoş geldiniz! Lisans çıkarmak için durumunuza uygun butona tıklayın.');
+                .setDescription('Ligde oynamak için durumunuza uygun butona tıklayıp formu doldurun. Başvurunuz **Kayıt Yetkilileri** tarafından incelenip onaylanacaktır.');
 
             const regRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('btn_reg_player').setLabel('Futbolcu Kaydı').setStyle(ButtonStyle.Success),
@@ -163,37 +151,75 @@ client.on('messageCreate', async (message) => {
 
             await chKayit.send({ embeds: [regEmbed], components: [regRow] });
 
-            return statusMsg.edit(`✅ **Kurulum Tamamlandı!**\n\n• **Roller:** ${unregRole}, ${playerRole}, ${tdRole}, ${adminRole}\n• **Antrenman Kanalı:** ${chAntrenman} *(1 Saat Yavaş Mod)*\n• **Kayıt Kanalı:** ${chKayit}`);
+            return statusMsg.edit(`✅ **DEV LİG ALTYAPISI BAŞARIYLA KURULDU!**\n\n• **Temizlenen Kanallar:** Hepsi sıfırlandı!\n• **Kanal İzinleri:** Kayıtsız kişilerin diğer kanalları görmesi engellendi.\n• **Roller:** ${unregRole}, ${playerRole}, ${tdRole}, ${regAuthRole}, ${valAuthRole}\n• **Antrenman:** ${chAntrenman} *(1 Saat Yavaş Mod)*\n• **Penaltı Sahası:** ${chPenalti}`);
         } catch (err) {
             console.error(err);
-            return statusMsg.edit('❌ Kurulum sırasında yetki hatası oluştu!');
+            return statusMsg.edit('❌ Kurulum sırasında bir hata oluştu!');
         }
     }
 
-    // --- REHBER VE KOMUT LİSTESİ (.komutlar / .rehber) ---
-    if (command === '.komutlar' || command === '.rehber' || command === '.yardim') {
+    // ==========================================
+    // 2. YETKİLİ ÖZEL KAYIT KONTROLÜ (.kaydet)
+    // ==========================================
+    if (command === '.kaydet') {
+        // Sadece Kayıt Yetkilisi Kullanabilir
+        if (!message.member.roles.cache.some(r => r.name === 'Kayıt Yetkilisi') && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('❌ Bu komutu sadece **Kayıt Yetkilisi** rolüne sahip kişiler kullanabilir!');
+        }
+
+        const target = message.mentions.members.first();
+        if (!target) return message.reply('❌ Bir üye etiketlemelisiniz! Örn: `.kaydet @üye Futbolcu`');
+
+        const roleType = args[2] ? args[2].toLowerCase() : '';
+        const unregRole = message.guild.roles.cache.find(r => r.name === 'Kayıtsız');
+
+        if (roleType === 'futbolcu') {
+            const pRole = message.guild.roles.cache.find(r => r.name === 'Futbolcu');
+            if (unregRole) await target.roles.remove(unregRole);
+            if (pRole) await target.roles.add(pRole);
+            return message.channel.send(`✅ **${target.displayName}** başarıyla **Futbolcu** olarak kaydedildi! Kayıtsız rolü alındı.`);
+        } else if (roleType === 'td' || roleType === 'teknik') {
+            const tdRole = message.guild.roles.cache.find(r => r.name === 'Teknik Direktör');
+            if (unregRole) await target.roles.remove(unregRole);
+            if (tdRole) await target.roles.add(tdRole);
+            return message.channel.send(`✅ **${target.displayName}** başarıyla **Teknik Direktör** olarak kaydedildi! Kayıtsız rolü alındı.`);
+        } else {
+            return message.reply('❌ Geçerli bir rol girin! Kullanım: `.kaydet @üye Futbolcu` veya `.kaydet @üye TD`');
+        }
+    }
+
+    // ==========================================
+    // 3. YETKİLİ DEĞER VERME (.dver)
+    // ==========================================
+    if (command === '.dver') {
+        // Sadece Değer Yetkilisi Kullanabilir
+        if (!message.member.roles.cache.some(r => r.name === 'Değer Yetkilisi') && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('❌ Bu komutu sadece **Değer Yetkilisi** rolüne sahip kişiler kullanabilir!');
+        }
+
+        const target = message.mentions.members.first();
+        if (!target) return message.reply('❌ Bir üye etiketleyin!');
+
+        const amount = parseFloat(args[2]);
+        const reason = args.slice(3).join(' ') || 'Performans Güncellemesi';
+
+        if (isNaN(amount)) return message.reply('❌ Geçerli bir miktar girin!');
+
+        const p = getPlayer(target.id, target.displayName);
+        p.value += amount;
+
         const embed = new EmbedBuilder()
-            .setTitle('📖 TENDO LEAGUE BOT KOMUTLARI')
-            .setColor('#2b2d31')
-            .setDescription(
-                '**⚙️ Sunucu Yöneticisi:**\n' +
-                '• `.kur` : Otomatik kanalları, rolleri, kayıt butonlarını kurar.\n' +
-                '• `.dver @kullanıcı <miktar> <sebep>` : Oyuncunun piyasa değerini artırır.\n' +
-                '• `.basvurupanel` : Yetkili başvuru formunu kanala gönderir.\n\n' +
-                '**⚽ Oyuncu Komutları:**\n' +
-                '• `.ant` : Sadece **#🏋️・antrenman** kanalında çalışır (+3M€ ödül).\n' +
-                '• `.pen` / `.kaleci` : Penaltı simülasyonu (+1.5M€ ödül).\n' +
-                '• `.ftbilmece` : Futbol bilmecesi başlatır (+2M€ ödül).\n' +
-                '• `.ara <isim>` : Sunucuda oyuncu araması yapar.\n\n' +
-                '**🏟️ Maç ve Takım Komutları:**\n' +
-                '• `!macsonu` : Maç sonu özet kartını ve istatistikleri açar.\n' +
-                '• `!taktik` : İnteraktif taktik ve mentalite ayar paneli.\n' +
-                '• `!kadro <takım>` : Takımın bütçe ve kadro listesi.'
-            );
+            .setColor('#f1c40f')
+            .setDescription(`💰 **${target.displayName}** oyuncusuna **${reason}** sebebiyle **+${amount}M€** değer eklendi!\nGüncel Değer: **${p.value.toFixed(1)}M€**`);
+
         return message.channel.send({ embeds: [embed] });
     }
 
-    // --- ANTRENMAN KOMUTU (.ant) ---
+    // ==========================================
+    // 4. KANAL KISITLAMALI KOMUTLAR
+    // ==========================================
+
+    // Antrenman (Sadece #🏋️・antrenman kanalında)
     if (command === '.ant' || command === '.antrenman') {
         if (!message.channel.name.includes('antrenman')) {
             return message.reply('❌ Antrenman komutu sadece **#🏋️・antrenman** kanalında kullanılabilir!');
@@ -204,7 +230,7 @@ client.on('messageCreate', async (message) => {
 
         if (now < p.antCd) {
             const rem = Math.ceil((p.antCd - now) / 60000);
-            return message.reply(`⏳ Bekleme süresindesin! **${rem} dk** sonra tekrar dene.`);
+            return message.reply(`⏳ Yavaş mod aktif! **${rem} dk** sonra tekrar deneyebilirsin.`);
         }
 
         p.antCount = (p.antCount % 10) + 1;
@@ -213,45 +239,31 @@ client.on('messageCreate', async (message) => {
         let rewardText = '';
         if (p.antCount === 10) {
             p.value += 3.0;
-            rewardText = '\n\n🎉 **TEBRİKLER!** 10 seans bitti: **+3M€** kazandın!';
+            rewardText = '\n\n🎉 **TEBRİKLER!** 10 seans bitti: **+3M€ Değer** kazandın!';
         }
 
         const bar = '🟩'.repeat(Math.min(p.antCount, 5)) + '⬜'.repeat(Math.max(0, 5 - p.antCount));
 
         const embed = new EmbedBuilder()
-            .setTitle('⚽ ANTRENMAN TAKİBİ')
-            .setThumbnail(message.author.displayAvatarURL())
+            .setTitle('⚽ ANTRENMAN SEANSI')
             .setColor('#43b581')
-            .setDescription(`**${message.author.username}**, antrenman işlendi!\n\n${bar}\n\n• **İlerleme:** ${p.antCount}/10 Seans${rewardText}`);
+            .setDescription(`**${message.author.username}**, antrenman işlendi!\n\n${bar}\n\nİlerleme: **${p.antCount}/10**${rewardText}`);
 
         return message.channel.send({ embeds: [embed] });
     }
 
-    // --- ÜYE ARAMA (.ara <isim>) ---
-    if (command === '.ara') {
-        const query = args.slice(1).join(' ').toLowerCase();
-        if (!query) return message.reply('❌ Lütfen aranacak bir isim girin!');
-
-        const members = await message.guild.members.fetch();
-        const matched = members.filter(m => m.displayName.toLowerCase().includes(query) || m.user.username.toLowerCase().includes(query));
-
-        const embed = new EmbedBuilder()
-            .setTitle('🔍 Üye Arama Sistemi')
-            .setColor('#2b2d31')
-            .setDescription(`Aranan: **${query}** | Bulunan: **${matched.size}**\n\n` +
-                (matched.map(m => `🟢 **${m.displayName}** (<@${m.id}>)`).join('\n') || 'Kullanıcı bulunamadı.'));
-
-        return message.channel.send({ embeds: [embed] });
-    }
-
-    // --- PENALTI SİSTEMİ (.pen) ---
+    // Penaltı ve Kaleci (Sadece #⚽・penaltı-sahası kanalında)
     if (command === '.pen' || command === '.kaleci') {
+        if (!message.channel.name.includes('penaltı')) {
+            return message.reply('❌ Penaltı komutları sadece **#⚽・penaltı-sahası** kanalında kullanılabilir!');
+        }
+
         const p = getPlayer(message.author.id, message.author.username);
         const now = Date.now();
 
         if (now < p.penCd) {
             const rem = Math.ceil((p.penCd - now) / 60000);
-            return message.reply(`⏳ Bekleme süresindesin! **${rem} dk** sonra dene.`);
+            return message.reply(`⏳ Penaltı sahası dolu! **${rem} dk** bekle.`);
         }
 
         p.penCd = now + (2 * 60 * 60 * 1000);
@@ -265,53 +277,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // --- FUTBOL BİLMECESİ (.ftbilmece) ---
-    if (command === '.ftbilmece') {
-        const questions = [
-            { q: 'AC Milan\'ın 3 numaralı forması emekli edilen efsane stoper kimdir?', a: 'maldini' },
-            { q: 'Tottenham\'dan Bayern Münih\'e transfer olan İngiliz santrfor kimdir?', a: 'harry kane' }
-        ];
-
-        const selected = questions[Math.floor(Math.random() * questions.length)];
-        activeQuizzes.set(message.channel.id, { answer: selected.a });
-
-        const embed = new EmbedBuilder()
-            .setTitle('⚽ Futbol Bilmecesi')
-            .setColor('#2b2d31')
-            .addFields({ name: 'Soru:', value: selected.q }, { name: '⏰ Süre:', value: '30 Saniye' });
-
-        return message.channel.send({ embeds: [embed] });
-    }
-
-    if (activeQuizzes.has(message.channel.id)) {
-        const quiz = activeQuizzes.get(message.channel.id);
-        if (message.content.toLowerCase().trim() === quiz.answer) {
-            activeQuizzes.delete(message.channel.id);
-            const p = getPlayer(message.author.id, message.author.username);
-            p.value += 2.0;
-
-            return message.channel.send({ embeds: [new EmbedBuilder().setTitle('🎉 TEBRİKLER!').setColor('#43b581').setDescription(`Tebrikler <@${message.author.id}>, doğru cevap!\n✅ **Cevap:** ${quiz.answer.toUpperCase()}\n💰 **Ödül:** +2.0M€ Değer`)] });
-        }
-    }
-
-    // --- YETKİLİ DEĞER VERME (.dver) ---
-    if (command === '.dver') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-        const target = message.mentions.members.first();
-        if (!target) return message.reply('❌ Bir üye etiketle.');
-
-        const amount = parseFloat(args[2]);
-        const reason = args.slice(3).join(' ') || 'Lig Yetkili Kararı';
-
-        if (isNaN(amount)) return message.reply('❌ Geçerli bir miktar gir.');
-
-        const p = getPlayer(target.id, target.displayName);
-        p.value += amount;
-
-        return message.channel.send({ embeds: [new EmbedBuilder().setColor('#43b581').setDescription(`✅ **${target.displayName}** üyesine **${reason}** sebebiyle **+${amount}M€** eklendi!\nGüncel Değer: **${p.value.toFixed(1)}M€**`)] });
-    }
-
-    // --- MAÇ SONU ÖZETİ (!macsonu) ---
+    // Maç Sonu Kartı
     if (command === '!macsonu') {
         const embed = new EmbedBuilder()
             .setTitle('🏟️ MAÇ SONA ERDİ')
@@ -327,65 +293,24 @@ client.on('messageCreate', async (message) => {
                 '📊 **Maç İstatistikleri**\n' +
                 '⚡ **Topla Oynama %**\n🟦🟦🟦🟦🟦🟦🟥🟥🟥🟥🟥 (53 - 47)\n\n' +
                 '💥 **Şut:** 6 - 11 | 🎯 **İsabetli:** 4 - 5 | 🚩 **Korner:** 1 - 6\n\n' +
-                '🎯 **Taktik Etkisi**\n' +
-                '⚔️ Ofansif • 🔺 Yüksek Pres vs 🧱 Ultra Defansif • Orta Blok\n\n' +
                 '⭐ **MAÇIN ADAMI**\n' +
-                '🌟 **D.Núñez** | 🇺🇾 | SNT | 200M€ — **10.0**\n' +
-                '⚽ 3 gol • 💥 9 şut • 🌀 3 çalım • 🛡️ 3 top kapma'
-            )
-            .setFooter({ text: 'Real Madrid 951.1M • Barcelona 780.3M' });
+                '🌟 **D.Núñez** | 🇺🇾 | SNT | 200M€ — **10.0**'
+            );
 
         return message.channel.send({ embeds: [embed] });
     }
 
-    // --- TAKTİK PANENLİ (!taktik) ---
+    // Taktik
     if (command === '!taktik') {
         const embed = new EmbedBuilder()
-            .setTitle('🎯 TAKTİK - Real Madrid')
+            .setTitle('🎯 TAKTİK PANENLİ')
             .setColor('#2b2d31')
             .setDescription('🎯 **Mentalite:** ⚔️ Ofansif\n🏃 **Pres:** 🔺 Yüksek Pres\n⚡ **Tempo:** 📐 Kısa Pas');
 
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('btn_mentalite').setLabel('Ofansif').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('btn_pres').setLabel('Yüksek Pres').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('btn_tempo').setLabel('Kısa Pas').setStyle(ButtonStyle.Secondary)
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('btn_kadro').setLabel('Kadroya Dön').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('btn_bitir').setLabel('Kaydet & Bitir').setStyle(ButtonStyle.Success)
-        );
-
-        return message.channel.send({ embeds: [embed], components: [row1, row2] });
-    }
-
-    // --- KADRO DÖKÜMÜ (!kadro <takım>) ---
-    if (command === '!kadro') {
-        const key = args[1] ? args[1].toLowerCase() : 'realmadrid';
-        const club = clubData.get(key);
-
-        if (!club) return message.reply('❌ Kulüp bulunamadı!');
-
-        const list = club.squad.map(s => `🟢 **${s.name}** | ${s.pos} | ${s.val}M€`).join('\n');
-        const embed = new EmbedBuilder()
-            .setTitle(`📋 ${club.name} Kadrosu`)
-            .setColor('#2b2d31')
-            .setDescription(`💰 **Bütçe:** ${club.budget}M€\n👔 **Menajer:** ${club.manager}\n----------------------------------------\n${list}`);
-
-        return message.channel.send({ embeds: [embed] });
-    }
-
-    // --- YETKİLİ BAŞVURU PANELİ (.basvurupanel) ---
-    if (command === '.basvurupanel') {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-        const embed = new EmbedBuilder()
-            .setTitle('📋 Yetkili Başvuru Formu')
-            .setColor('#2b2d31')
-            .setDescription('Ekibimize katılmak için aşağıdaki **Başvur** butonuna tıklayın.');
-
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('btn_basvur').setLabel('📝 Başvur').setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId('btn_m').setLabel('Ofansif').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('btn_p').setLabel('Yüksek Pres').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('btn_t').setLabel('Kısa Pas').setStyle(ButtonStyle.Secondary)
         );
 
         return message.channel.send({ embeds: [embed], components: [row] });
@@ -393,54 +318,67 @@ client.on('messageCreate', async (message) => {
 });
 
 // ==========================================
-// 5. ETKİLEŞİM VE BUTON HANDLERİ
+// 5. MODAL KAYIT VE BUTON İŞLEMLERİ
 // ==========================================
 client.on('interactionCreate', async (interaction) => {
     try {
         if (interaction.isButton()) {
-            const member = interaction.member;
-            const unregRole = interaction.guild.roles.cache.find(r => r.name === 'Kayıtsız');
-            const playerRole = interaction.guild.roles.cache.find(r => r.name === 'Futbolcu');
-            const tdRole = interaction.guild.roles.cache.find(r => r.name === 'Teknik Direktör');
-
+            // Futbolcu Modal Açma (İsim | Ülke | Değer)
             if (interaction.customId === 'btn_reg_player') {
-                if (unregRole && member.roles.cache.has(unregRole.id)) await member.roles.remove(unregRole);
-                if (playerRole) await member.roles.add(playerRole);
-                return await interaction.reply({ content: '✅ **Kayıtsız** rolü kaldırıldı! **Futbolcu** lisansı tanımlandı.', ephemeral: true });
-            }
-
-            if (interaction.customId === 'btn_reg_td') {
-                if (unregRole && member.roles.cache.has(unregRole.id)) await member.roles.remove(unregRole);
-                if (tdRole) await member.roles.add(tdRole);
-                return await interaction.reply({ content: '✅ **Kayıtsız** rolü kaldırıldı! **Teknik Direktör** lisansı tanımlandı.', ephemeral: true });
-            }
-
-            if (interaction.customId === 'btn_mentalite') return await interaction.reply({ content: '🎯 Mentalite: **Ofansif**', ephemeral: true });
-            if (interaction.customId === 'btn_pres') return await interaction.reply({ content: '🏃 Pres: **Yüksek Pres**', ephemeral: true });
-            if (interaction.customId === 'btn_tempo') return await interaction.reply({ content: '⚡ Tempo: **Kısa Pas**', ephemeral: true });
-            if (interaction.customId === 'btn_bitir') return await interaction.reply({ content: '✅ Taktik ayarları kaydedildi!', ephemeral: true });
-
-            if (interaction.customId === 'btn_basvur') {
-                const modal = new ModalBuilder().setCustomId('modal_basvuru').setTitle('Yetkili Başvuru Formu');
+                const modal = new ModalBuilder().setCustomId('modal_reg_player').setTitle('Futbolcu Lisans Formu');
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true)),
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_reason').setLabel('Neden Yetkili Olmak İstiyorsunuz?').setStyle(TextInputStyle.Paragraph).setRequired(true))
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('p_name').setLabel('İsim').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('p_country').setLabel('Ülke').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('p_val').setLabel('Piyasa Değeri (M€)').setStyle(TextInputStyle.Short).setRequired(true))
+                );
+                return await interaction.showModal(modal);
+            }
+
+            // TD Modal Açma (İsim | Ülke | Yaş | Kupa Sayısı)
+            if (interaction.customId === 'btn_reg_td') {
+                const modal = new ModalBuilder().setCustomId('modal_reg_td').setTitle('Teknik Direktör Sözleşme Formu');
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_name').setLabel('İsim').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_country').setLabel('Ülke').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_age').setLabel('Yaş').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_trophy').setLabel('Kupa Sayısı').setStyle(TextInputStyle.Short).setRequired(true))
                 );
                 return await interaction.showModal(modal);
             }
         }
 
-        if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'modal_basvuru') {
-            const age = interaction.fields.getTextInputValue('input_age');
-            const reason = interaction.fields.getTextInputValue('input_reason');
+        // MODAL FORM GÖNDERİMLERİ (Kayıt Loguna İletme)
+        if (interaction.type === InteractionType.ModalSubmit) {
+            const logCh = interaction.guild.channels.cache.find(c => c.name.includes('kayıt-log'));
 
-            const embed = new EmbedBuilder()
-                .setTitle('📋 Yeni Yetkili Başvurusu')
-                .setColor('#2b2d31')
-                .setDescription(`**Başvuran:** <@${interaction.user.id}>\n**Yaş:** ${age}\n**Açıklama:** ${reason}`);
+            if (interaction.customId === 'modal_reg_player') {
+                const name = interaction.fields.getTextInputValue('p_name');
+                const country = interaction.fields.getTextInputValue('p_country');
+                const val = interaction.fields.getTextInputValue('p_val');
 
-            await interaction.reply({ content: '✅ Başvurunuz başarıyla iletildi.', ephemeral: true });
-            return interaction.channel.send({ embeds: [embed] });
+                const embed = new EmbedBuilder()
+                    .setTitle('📋 Yeni Futbolcu Lisans Başvurusu')
+                    .setColor('#1abc9c')
+                    .setDescription(`**Başvuran:** <@${interaction.user.id}>\n\n**İsim:** ${name}\n**Ülke:** ${country}\n**Değeri:** ${val}M€\n\n*Onaylamak için:* \`.kaydet <@${interaction.user.id}> Futbolcu\``);
+
+                if (logCh) await logCh.send({ embeds: [embed] });
+                return await interaction.reply({ content: '✅ Futbolcu lisans başvurunuz Kayıt Yetkililerine iletildi!', ephemeral: true });
+            }
+
+            if (interaction.customId === 'modal_reg_td') {
+                const name = interaction.fields.getTextInputValue('td_name');
+                const country = interaction.fields.getTextInputValue('td_country');
+                const age = interaction.fields.getTextInputValue('td_age');
+                const trophy = interaction.fields.getTextInputValue('td_trophy');
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📋 Yeni T.D. Başvurusu')
+                    .setColor('#e67e22')
+                    .setDescription(`**Başvuran:** <@${interaction.user.id}>\n\n**İsim:** ${name}\n**Ülke:** ${country}\n**Yaş:** ${age}\n**Kupa Sayısı:** ${trophy}\n\n*Onaylamak için:* \`.kaydet <@${interaction.user.id}> TD\``);
+
+                if (logCh) await logCh.send({ embeds: [embed] });
+                return await interaction.reply({ content: '✅ Teknik Direktör başvurunuz Kayıt Yetkililerine iletildi!', ephemeral: true });
+            }
         }
     } catch (err) {
         console.error('Etkileşim Hatası:', err);
