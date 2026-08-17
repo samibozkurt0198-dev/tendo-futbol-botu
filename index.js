@@ -16,13 +16,18 @@ const http = require('http');
 require('dotenv').config();
 
 // ==========================================
-// 1. WEB SUNUCUSU (Render / Glitch 7/24 Uptime)
+// 1. WEB SUNUCUSU (7/24 Uptime Sağlayıcı)
 // ==========================================
 http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Tendo League Full Sistem 7/24 Aktif!');
-}).listen(process.env.PORT || 3000);
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Tendo League Mega Sistem 7/24 Aktif!');
+}).listen(process.env.PORT || 3000, () => {
+    console.log('🌐 Web sunucusu dinleniyor...');
+});
 
+// ==========================================
+// 2. BOT İSTEMCİSİ VE BELLEK VERİTABANI
+// ==========================================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -33,24 +38,26 @@ const client = new Client({
     ]
 });
 
-// Veri Yapıları
 const playerData = new Map();
 const activeQuizzes = new Map();
 const clubData = new Map();
 
-// Varsayılan Takım Bilgileri ve Kadrolar
+// Varsayılan Takım Bilgileri
 clubData.set('realmadrid', {
     name: 'Real Madrid',
     budget: 951.1,
+    manager: 'Kenan Papi',
     squad: [
         { name: 'Tchouaméni', pos: 'DOS', val: 200 },
-        { name: 'B.Šeško', pos: 'SNT', val: 109.5 }
+        { name: 'B.Šeško', pos: 'SNT', val: 109.5 },
+        { name: 'Kenan Papi', pos: 'OS', val: 150 }
     ]
 });
 
 clubData.set('barcelona', {
     name: 'Barcelona',
     budget: 780.3,
+    manager: 'Atanmadı',
     squad: [
         { name: 'D.Núñez', pos: 'SNT', val: 200 },
         { name: 'Joao Neves', pos: 'OS', val: 200 },
@@ -60,26 +67,37 @@ clubData.set('barcelona', {
 
 function getPlayer(id, username) {
     if (!playerData.has(id)) {
-        playerData.set(id, { name: username, team: 'Serbest', role: 'Kayıtsız', value: 20.0, antCount: 0, antCd: 0, penCd: 0 });
+        playerData.set(id, {
+            name: username,
+            team: 'Serbest',
+            role: 'Kayıtsız',
+            value: 20.0,
+            antCount: 0,
+            antCd: 0,
+            penCd: 0
+        });
     }
     return playerData.get(id);
 }
 
 client.on('ready', () => {
-    console.log(`🤖 Tendo League Botu (${client.user.tag}) Tam Kapasite Aktif!`);
+    console.log(`🤖 ${client.user.tag} Altyapı Botu Tam Kapasite Aktif!`);
 });
 
 // ==========================================
-// 2. OTOMATİK ROL VE KAYIT SİSTEMİ
+// 3. SUNUCUYA KATILANLARA OTOMATİK ROL
 // ==========================================
 client.on('guildMemberAdd', async (member) => {
-    // Yeni Girenlere Otomatik Kayıtsız Rolü Ver
-    const unregRole = member.guild.roles.cache.find(r => r.name === 'Kayıtsız');
-    if (unregRole) await member.roles.add(unregRole);
+    try {
+        const unregRole = member.guild.roles.cache.find(r => r.name === 'Kayıtsız');
+        if (unregRole) await member.roles.add(unregRole);
+    } catch (e) {
+        console.error('Otomatik rol verme hatası:', e);
+    }
 });
 
 // ==========================================
-// 3. MESAJ VE LİG KOMUTLARI
+// 4. MESAJ DİNLENİCİSİ VE LİG KOMUTLARI
 // ==========================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
@@ -96,51 +114,83 @@ client.on('messageCreate', async (message) => {
         const statusMsg = await message.channel.send('⏳ **Tendo League Kurulumu Başlatılıyor...**');
 
         try {
-            // Roller Oluşturuluyor
+            // Roller
             const unregRole = await message.guild.roles.create({ name: 'Kayıtsız', color: '#808080' });
             const playerRole = await message.guild.roles.create({ name: 'Futbolcu', color: '#1abc9c' });
             const tdRole = await message.guild.roles.create({ name: 'Teknik Direktör', color: '#e67e22' });
+            const adminRole = await message.guild.roles.create({ name: 'Lig Yetkilisi', color: '#e74c3c' });
 
-            // Kategori ve Kanallar Oluşturuluyor
-            const category = await message.guild.channels.create({ name: '🏆 TENDO LEAGUE 🏆', type: ChannelType.GuildCategory });
+            // Kategoriler
+            const catLeague = await message.guild.channels.create({ name: '🏆 TENDO LEAGUE 🏆', type: ChannelType.GuildCategory });
+            const catMedia = await message.guild.channels.create({ name: '📢 DUYURU VE MEDYA', type: ChannelType.GuildCategory });
 
-            const antCh = await message.guild.channels.create({
+            // Tum Kanallar
+            await message.guild.channels.create({ name: '📢・duyurular', type: ChannelType.GuildText, parent: catMedia.id });
+            await message.guild.channels.create({ name: '🚀・booster', type: ChannelType.GuildText, parent: catMedia.id });
+            await message.guild.channels.create({ name: '📚・sistemler', type: ChannelType.GuildText, parent: catMedia.id });
+            await message.guild.channels.create({ name: '💬・sohbet', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '🤖・bot-komut', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '📝・şikayet-öneri', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '🎮・eğlence', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '🔄・transfer-yapma-kanalı', type: ChannelType.GuildText, parent: catLeague.id });
+            
+            const chAntrenman = await message.guild.channels.create({
                 name: '🏋️・antrenman',
                 type: ChannelType.GuildText,
-                parent: category.id,
+                parent: catLeague.id,
                 rateLimitPerUser: 3600 // 1 Saatlik Yavaş Mod
             });
 
-            const matchCh = await message.guild.channels.create({
-                name: '🏟️・maç-sahası',
-                type: ChannelType.GuildText,
-                parent: category.id
+            await message.guild.channels.create({ name: '📅・takvim', type: ChannelType.GuildText, parent: catLeague.id });
+            await message.guild.channels.create({ name: '🌧️・hava-durumu', type: ChannelType.GuildText, parent: catLeague.id });
+            
+            const chKayit = await message.guild.channels.create({ 
+                name: '📝・kayıt-şehri', 
+                type: ChannelType.GuildText, 
+                parent: catLeague.id 
             });
 
-            const regCh = await message.guild.channels.create({
-                name: '📝・kayıt-şehri',
-                type: ChannelType.GuildText,
-                parent: category.id
-            });
-
-            // Kayıt Paneli Butonları
+            // Kayit Paneli
             const regEmbed = new EmbedBuilder()
                 .setTitle('📝 Tendo League Lisans Kayıt Paneli')
                 .setColor('#2b2d31')
-                .setDescription('Ligimize hoş geldiniz! Lisans çıkarmak için aşağıdaki butonlardan kaydolmak istediğiniz rolü seçin.');
+                .setDescription('Ligimize hoş geldiniz! Lisans çıkarmak için durumunuza uygun butona tıklayın.');
 
             const regRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('btn_reg_player').setLabel('Futbolcu Kaydı').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('btn_reg_td').setLabel('Teknik Direktör Kaydı').setStyle(ButtonStyle.Primary)
             );
 
-            await regCh.send({ embeds: [regEmbed], components: [regRow] });
+            await chKayit.send({ embeds: [regEmbed], components: [regRow] });
 
-            return statusMsg.edit(`✅ **Lig Altyapısı Başarıyla Kuruldu!**\n\n• **Roller:** ${unregRole}, ${playerRole}, ${tdRole}\n• **Antrenman Kanalı:** ${antCh} *(1 Saat Yavaş Mod Aktif)*\n• **Kayıt Kanalı:** ${regCh}`);
+            return statusMsg.edit(`✅ **Kurulum Tamamlandı!**\n\n• **Roller:** ${unregRole}, ${playerRole}, ${tdRole}, ${adminRole}\n• **Antrenman Kanalı:** ${chAntrenman} *(1 Saat Yavaş Mod)*\n• **Kayıt Kanalı:** ${chKayit}`);
         } catch (err) {
             console.error(err);
-            return statusMsg.edit('❌ Kurulum sırasında bir hata oluştu!');
+            return statusMsg.edit('❌ Kurulum sırasında yetki hatası oluştu!');
         }
+    }
+
+    // --- REHBER VE KOMUT LİSTESİ (.komutlar / .rehber) ---
+    if (command === '.komutlar' || command === '.rehber' || command === '.yardim') {
+        const embed = new EmbedBuilder()
+            .setTitle('📖 TENDO LEAGUE BOT KOMUTLARI')
+            .setColor('#2b2d31')
+            .setDescription(
+                '**⚙️ Sunucu Yöneticisi:**\n' +
+                '• `.kur` : Otomatik kanalları, rolleri, kayıt butonlarını kurar.\n' +
+                '• `.dver @kullanıcı <miktar> <sebep>` : Oyuncunun piyasa değerini artırır.\n' +
+                '• `.basvurupanel` : Yetkili başvuru formunu kanala gönderir.\n\n' +
+                '**⚽ Oyuncu Komutları:**\n' +
+                '• `.ant` : Sadece **#🏋️・antrenman** kanalında çalışır (+3M€ ödül).\n' +
+                '• `.pen` / `.kaleci` : Penaltı simülasyonu (+1.5M€ ödül).\n' +
+                '• `.ftbilmece` : Futbol bilmecesi başlatır (+2M€ ödül).\n' +
+                '• `.ara <isim>` : Sunucuda oyuncu araması yapar.\n\n' +
+                '**🏟️ Maç ve Takım Komutları:**\n' +
+                '• `!macsonu` : Maç sonu özet kartını ve istatistikleri açar.\n' +
+                '• `!taktik` : İnteraktif taktik ve mentalite ayar paneli.\n' +
+                '• `!kadro <takım>` : Takımın bütçe ve kadro listesi.'
+            );
+        return message.channel.send({ embeds: [embed] });
     }
 
     // --- ANTRENMAN KOMUTU (.ant) ---
@@ -154,7 +204,7 @@ client.on('messageCreate', async (message) => {
 
         if (now < p.antCd) {
             const rem = Math.ceil((p.antCd - now) / 60000);
-            return message.reply(`⏳ Bekleme süresindesin! **${rem} dk** sonra dene.`);
+            return message.reply(`⏳ Bekleme süresindesin! **${rem} dk** sonra tekrar dene.`);
         }
 
         p.antCount = (p.antCount % 10) + 1;
@@ -172,8 +222,7 @@ client.on('messageCreate', async (message) => {
             .setTitle('⚽ ANTRENMAN TAKİBİ')
             .setThumbnail(message.author.displayAvatarURL())
             .setColor('#43b581')
-            .setDescription(`**${message.author.username}**, antrenman sisteme işlendi!\n\n${bar}\n\n• **İlerleme:** ${p.antCount}/10 Seans${rewardText}`)
-            .setFooter({ text: 'Tendo Performance Center' });
+            .setDescription(`**${message.author.username}**, antrenman işlendi!\n\n${bar}\n\n• **İlerleme:** ${p.antCount}/10 Seans${rewardText}`);
 
         return message.channel.send({ embeds: [embed] });
     }
@@ -181,7 +230,7 @@ client.on('messageCreate', async (message) => {
     // --- ÜYE ARAMA (.ara <isim>) ---
     if (command === '.ara') {
         const query = args.slice(1).join(' ').toLowerCase();
-        if (!query) return message.reply('❌ Lütfen bir isim girin!');
+        if (!query) return message.reply('❌ Lütfen aranacak bir isim girin!');
 
         const members = await message.guild.members.fetch();
         const matched = members.filter(m => m.displayName.toLowerCase().includes(query) || m.user.username.toLowerCase().includes(query));
@@ -189,33 +238,30 @@ client.on('messageCreate', async (message) => {
         const embed = new EmbedBuilder()
             .setTitle('🔍 Üye Arama Sistemi')
             .setColor('#2b2d31')
-            .setDescription(`Aranan: **${query}**\nBulunan: **${matched.size}**\n\n` +
-                (matched.map(m => `🟢 **${m.displayName}** (<@${m.id}>)`).join('\n') || 'Üye bulunamadı.'))
-            .setFooter({ text: 'Tendo League Kayıt Sistemi' });
+            .setDescription(`Aranan: **${query}** | Bulunan: **${matched.size}**\n\n` +
+                (matched.map(m => `🟢 **${m.displayName}** (<@${m.id}>)`).join('\n') || 'Kullanıcı bulunamadı.'));
 
         return message.channel.send({ embeds: [embed] });
     }
 
-    // --- PENALTI SİSTEMİ (.pen / .kaleci) ---
+    // --- PENALTI SİSTEMİ (.pen) ---
     if (command === '.pen' || command === '.kaleci') {
         const p = getPlayer(message.author.id, message.author.username);
         const now = Date.now();
 
         if (now < p.penCd) {
             const rem = Math.ceil((p.penCd - now) / 60000);
-            return message.reply(`⏳ Penaltı sahası dolu! **${rem} dk** bekle.`);
+            return message.reply(`⏳ Bekleme süresindesin! **${rem} dk** sonra dene.`);
         }
 
         p.penCd = now + (2 * 60 * 60 * 1000);
         const isGoal = Math.random() < 0.5;
 
-        if (command === '.pen') {
-            if (isGoal) {
-                p.value += 1.5;
-                return message.channel.send({ embeds: [new EmbedBuilder().setTitle('⚽ GOOOOOOLLLL!').setColor('#43b581').setDescription(`Harika bir vuruş!\n🚀 **Kazanılan Değer:** +1.5M€\n💰 **Güncel Değer:** ${p.value.toFixed(1)}M€`)] });
-            } else {
-                return message.channel.send({ embeds: [new EmbedBuilder().setTitle('🧤 KALECİ KURTARDI!').setColor('#f04747').setDescription(`Kaleci çıkardı!\n💰 **Güncel Değer:** ${p.value.toFixed(1)}M€`)] });
-            }
+        if (isGoal) {
+            p.value += 1.5;
+            return message.channel.send({ embeds: [new EmbedBuilder().setTitle('⚽ GOOOOOOLLLL!').setColor('#43b581').setDescription(`Top ağlarla buluştu!\n🚀 **Kazanılan Değer:** +1.5M€\n💰 **Güncel Değer:** ${p.value.toFixed(1)}M€`)] });
+        } else {
+            return message.channel.send({ embeds: [new EmbedBuilder().setTitle('🧤 KALECİ KURTARDI!').setColor('#f04747').setDescription(`Top kalecide kaldı!\n💰 **Güncel Değer:** ${p.value.toFixed(1)}M€`)] });
         }
     }
 
@@ -248,7 +294,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // --- YETKİLİ DEĞER VERME (.dver @üye <miktar> <sebep>) ---
+    // --- YETKİLİ DEĞER VERME (.dver) ---
     if (command === '.dver') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
         const target = message.mentions.members.first();
@@ -324,32 +370,30 @@ client.on('messageCreate', async (message) => {
         const embed = new EmbedBuilder()
             .setTitle(`📋 ${club.name} Kadrosu`)
             .setColor('#2b2d31')
-            .setDescription(`💰 **Bütçe:** ${club.budget}M€\n----------------------------------------\n${list}`);
+            .setDescription(`💰 **Bütçe:** ${club.budget}M€\n👔 **Menajer:** ${club.manager}\n----------------------------------------\n${list}`);
 
         return message.channel.send({ embeds: [embed] });
     }
 
-    // --- REHBER (.rehber) ---
-    if (command === '.rehber') {
+    // --- YETKİLİ BAŞVURU PANELİ (.basvurupanel) ---
+    if (command === '.basvurupanel') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
         const embed = new EmbedBuilder()
-            .setTitle('📖 Tendo League Sistem Rehberi')
+            .setTitle('📋 Yetkili Başvuru Formu')
             .setColor('#2b2d31')
-            .setDescription(
-                '• `.kur` : Otomatik kanalları, rolleri ve kayıt panellerini açar.\n' +
-                '• `.ant` : Sadece antrenman kanalında çalışır (1 saatlik yavaş modlu).\n' +
-                '• `.pen` : Penaltı atışı simülasyonu.\n' +
-                '• `.ftbilmece` : Futbol soru-cevap oyunu.\n' +
-                '• `.dver` : Yetkili oyuncu değer güncelleme.\n' +
-                '• `!macsonu` : Detaylı maç sonu ve istatistik özeti.\n' +
-                '• `!taktik` : Taktik ve strateji yönetimi.\n' +
-                '• `!kadro <takım>` : Takım oyuncu listesi.'
-            );
-        return message.channel.send({ embeds: [embed] });
+            .setDescription('Ekibimize katılmak için aşağıdaki **Başvur** butonuna tıklayın.');
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('btn_basvur').setLabel('📝 Başvur').setStyle(ButtonStyle.Primary)
+        );
+
+        return message.channel.send({ embeds: [embed], components: [row] });
     }
 });
 
 // ==========================================
-// 4. BUTON VE ETKİLEŞİM YÖNETİCİSİ
+// 5. ETKİLEŞİM VE BUTON HANDLERİ
 // ==========================================
 client.on('interactionCreate', async (interaction) => {
     try {
@@ -359,27 +403,47 @@ client.on('interactionCreate', async (interaction) => {
             const playerRole = interaction.guild.roles.cache.find(r => r.name === 'Futbolcu');
             const tdRole = interaction.guild.roles.cache.find(r => r.name === 'Teknik Direktör');
 
-            // Kayıt İşlemleri
             if (interaction.customId === 'btn_reg_player') {
                 if (unregRole && member.roles.cache.has(unregRole.id)) await member.roles.remove(unregRole);
                 if (playerRole) await member.roles.add(playerRole);
-                return await interaction.reply({ content: '✅ Kayıtsız rolünüz alındı! **Futbolcu** rolü verildi.', ephemeral: true });
+                return await interaction.reply({ content: '✅ **Kayıtsız** rolü kaldırıldı! **Futbolcu** lisansı tanımlandı.', ephemeral: true });
             }
 
             if (interaction.customId === 'btn_reg_td') {
                 if (unregRole && member.roles.cache.has(unregRole.id)) await member.roles.remove(unregRole);
                 if (tdRole) await member.roles.add(tdRole);
-                return await interaction.reply({ content: '✅ Kayıtsız rolünüz alındı! **Teknik Direktör** rolü verildi.', ephemeral: true });
+                return await interaction.reply({ content: '✅ **Kayıtsız** rolü kaldırıldı! **Teknik Direktör** lisansı tanımlandı.', ephemeral: true });
             }
 
-            // Taktik Buton Yanıtları
             if (interaction.customId === 'btn_mentalite') return await interaction.reply({ content: '🎯 Mentalite: **Ofansif**', ephemeral: true });
             if (interaction.customId === 'btn_pres') return await interaction.reply({ content: '🏃 Pres: **Yüksek Pres**', ephemeral: true });
             if (interaction.customId === 'btn_tempo') return await interaction.reply({ content: '⚡ Tempo: **Kısa Pas**', ephemeral: true });
             if (interaction.customId === 'btn_bitir') return await interaction.reply({ content: '✅ Taktik ayarları kaydedildi!', ephemeral: true });
+
+            if (interaction.customId === 'btn_basvur') {
+                const modal = new ModalBuilder().setCustomId('modal_basvuru').setTitle('Yetkili Başvuru Formu');
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_age').setLabel('Yaşınız?').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_reason').setLabel('Neden Yetkili Olmak İstiyorsunuz?').setStyle(TextInputStyle.Paragraph).setRequired(true))
+                );
+                return await interaction.showModal(modal);
+            }
+        }
+
+        if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'modal_basvuru') {
+            const age = interaction.fields.getTextInputValue('input_age');
+            const reason = interaction.fields.getTextInputValue('input_reason');
+
+            const embed = new EmbedBuilder()
+                .setTitle('📋 Yeni Yetkili Başvurusu')
+                .setColor('#2b2d31')
+                .setDescription(`**Başvuran:** <@${interaction.user.id}>\n**Yaş:** ${age}\n**Açıklama:** ${reason}`);
+
+            await interaction.reply({ content: '✅ Başvurunuz başarıyla iletildi.', ephemeral: true });
+            return interaction.channel.send({ embeds: [embed] });
         }
     } catch (err) {
-        console.error('Etkileşim hatası:', err);
+        console.error('Etkileşim Hatası:', err);
     }
 });
 
