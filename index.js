@@ -15,9 +15,11 @@ const {
 const http = require('http');
 require('dotenv').config();
 
-// Beklenmeyen Hataları Loglara Yazdırma (Crash Önleyici)
+// ==========================================
+// 1. HATA YAKALAMA VE CRASH ÖNLEYİCİ
+// ==========================================
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ YAKALANAMAYAN HATA (Unhandled Rejection):', reason);
+    console.error('❌ HATA (Unhandled Rejection):', reason);
 });
 
 process.on('uncaughtException', (err, origin) => {
@@ -25,7 +27,7 @@ process.on('uncaughtException', (err, origin) => {
 });
 
 // ==========================================
-// RENDER İÇİN UPTIME / PORT SUNUCUSU (10000)
+// 2. RENDER UPTIME / HTTP SUNUCUSU (PORT 10000)
 // ==========================================
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
@@ -35,13 +37,15 @@ http.createServer((req, res) => {
     console.log(`🌐 Web sunucusu ${PORT} portunda başarıyla dinleniyor.`);
 });
 
+// ==========================================
+// 3. DISCORD CLIENT VE INTENT AYARLARI
+// ==========================================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -114,10 +118,13 @@ async function updateFreeTeamsChannel(guild) {
     }
 }
 
-client.on('ready', () => {
-    console.log(`🤖 =============================================`);
-    console.log(`🤖 ${client.user.tag} Görsel Uyumlu Lig Botu Başarıyla Giriş Yaptı ve Aktif!`);
-    console.log(`🤖 =============================================`);
+// ==========================================
+// 4. BOT HAZIR OLDUĞUNDA
+// ==========================================
+client.once('ready', () => {
+    console.log(`✅ =============================================`);
+    console.log(`✅ BOT BAŞARIYLA GİRİŞ YAPTI: ${client.user.tag}`);
+    console.log(`✅ =============================================`);
 });
 
 // Otomatik Kayıtsız Rolü
@@ -130,15 +137,16 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
+// ==========================================
+// 5. KOMUTLAR VE MESAJLAR
+// ==========================================
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const args = message.content.trim().split(/ +/);
     const command = args[0].toLowerCase();
 
-    // ==========================================
-    // 1. TAM OTOMATİK GELİŞMİŞ KURULUM (.kur)
-    // ==========================================
+    // TAM OTOMATİK GELİŞMİŞ KURULUM (.kur)
     if (command === '.kur') {
         if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return message.reply('❌ Bu komutu sadece **Yöneticiler** kullanabilir!');
@@ -147,7 +155,6 @@ client.on('messageCreate', async (message) => {
         const statusMsg = await message.channel.send('⏳ **Eski tüm kanallar siliniyor, roller ve kanal izinleri yapılandırılıyor...**');
 
         try {
-            // A) Tüm Eski Kanalları Sil
             const channels = await message.guild.channels.fetch();
             for (const [id, ch] of channels) {
                 if (ch && ch.deletable && ch.id !== message.channel.id) {
@@ -155,19 +162,16 @@ client.on('messageCreate', async (message) => {
                 }
             }
 
-            // B) Rolleri Oluştur
             const unregRole = await message.guild.roles.create({ name: 'Kayıtsız', color: '#808080' });
             const playerRole = await message.guild.roles.create({ name: 'Futbolcu', color: '#1abc9c' });
             const tdRole = await message.guild.roles.create({ name: 'Teknik Direktör', color: '#e67e22' });
             const regAuthRole = await message.guild.roles.create({ name: 'Kayıt Yetkilisi', color: '#3498db' });
             const valAuthRole = await message.guild.roles.create({ name: 'Değer Yetkilisi', color: '#f1c40f' });
 
-            // Takım Rolleri
             for (const club of clubData.values()) {
                 await message.guild.roles.create({ name: club.roleName, color: '#9b59b6' });
             }
 
-            // C) İzin Tanımları (Kayıtsızlar diğer kanalları göremeyecek)
             const denyUnregistered = [
                 { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                 { id: unregRole.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -181,7 +185,6 @@ client.on('messageCreate', async (message) => {
                 { id: regAuthRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
             ];
 
-            // D) Kategoriler ve Bol Kanallar
             const catInfo = await message.guild.channels.create({ name: '📢 İDARİ VE DUYURULAR', type: ChannelType.GuildCategory, permissionOverwrites: denyUnregistered });
             await message.guild.channels.create({ name: '📢・duyurular', type: ChannelType.GuildText, parent: catInfo.id });
             await message.guild.channels.create({ name: '📜・şartlar-ve-kurallar', type: ChannelType.GuildText, parent: catInfo.id });
@@ -206,7 +209,6 @@ client.on('messageCreate', async (message) => {
             await message.guild.channels.create({ name: '🔄・transfer-yapma', type: ChannelType.GuildText, parent: catTransfer.id });
             await message.guild.channels.create({ name: '💰・oyuncu-piyasası', type: ChannelType.GuildText, parent: catTransfer.id });
 
-            // E) Görsel Uyumlu Kayıt Paneli Gönderme
             const regEmbed = new EmbedBuilder()
                 .setTitle('Freeze League Hoş Geldiniz!')
                 .setColor('#2b2d31')
@@ -223,23 +225,19 @@ client.on('messageCreate', async (message) => {
             );
 
             await chKayit.send({ embeds: [regEmbed], components: [regRow] });
-
-            // Boş Takımlar Kanalını Doldur
             await updateFreeTeamsChannel(message.guild);
 
-            return statusMsg.edit(`✅ **Freeze League Dev Altyapısı Kuruldu!**\n\n• **Boş Takımlar:** ${chBosTakimlar}\n• **Kayıt Kanalı:** ${chKayit}\n• Tüm takım kanalları ve rol izinleri başarıyla entegre edildi.`);
+            return statusMsg.edit(`✅ **Freeze League Dev Altyapısı Kuruldu!**\n\n• **Boş Takımlar:** ${chBosTakimlar}\n• **Kayıt Kanalı:** ${chKayit}`);
         } catch (e) {
             console.error('Kurulum hatası:', e);
             return statusMsg.edit('❌ Kurulum sırasında hata oluştu.');
         }
     }
 
-    // ==========================================
-    // 2. DEĞER VERME VE ALMA (.dver / .dal)
-    // ==========================================
+    // DEĞER VERME VE ALMA (.dver / .dal)
     if (command === '.dver' || command === '.dal') {
         if (!message.member.roles.cache.some(r => r.name === 'Değer Yetkilisi') && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return message.reply('❌ Bu komutu sadece **Değer Yetkilisi** rolüne sahip kişiler kullanabilir!');
+            return message.reply('❌ Bu komutu sadece **Değer Yetkilisi** kullanabilir!');
         }
 
         const target = message.mentions.members.first();
@@ -262,9 +260,7 @@ client.on('messageCreate', async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    // ==========================================
-    // 3. GELİŞMİŞ TAKTİK VE KADRO (!taktik <takim_id>)
-    // ==========================================
+    // GELİŞMİŞ TAKTİK VE KADRO (!taktik <takim_id>)
     if (command === '!taktik') {
         const clubId = args[1] ? args[1].toLowerCase() : 'rmadrid';
         const club = clubData.get(clubId);
@@ -287,73 +283,30 @@ client.on('messageCreate', async (message) => {
                 `📋 **Diziliş:** ${club.tactic}\n` +
                 `🎯 **Taktik:** ${club.mentality} • ${club.pres} • ${club.tempo}\n\n` +
                 `**İlk 11 Listesi:**\n${squadList}`
-            )
-            .setImage('https://i.imgur.com/8Q9Z4fE.png')
-            .setFooter({ text: 'Bir pozisyona oyuncu koymak/değiştirmek için butonları kullanın.' });
+            );
 
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`btn_pos_0_${club.id}`).setLabel('1. KL').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`btn_pos_1_${club.id}`).setLabel('2. SLB').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`btn_pos_2_${club.id}`).setLabel('3. STP').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`btn_pos_3_${club.id}`).setLabel('4. STP').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`btn_pos_4_${club.id}`).setLabel('5. SGB').setStyle(ButtonStyle.Success)
-        );
-
-        const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`btn_tactic_change_${club.id}`).setLabel('🎯 Taktik Ayarla').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`btn_clear_squad_${club.id}`).setLabel('Kadrocu Temizle').setStyle(ButtonStyle.Danger)
-        );
-
-        return message.channel.send({ embeds: [embed], components: [row1, row2] });
+        return message.channel.send({ embeds: [embed] });
     }
 
-    // ==========================================
-    // 4. TRANSFER SİSTEMİ (.transfer)
-    // ==========================================
-    if (command === '.transfer') {
-        const target = message.mentions.members.first();
-        const clubId = args[2] ? args[2].toLowerCase() : null;
-
-        if (!target || !clubId || !clubData.has(clubId)) {
-            return message.reply('❌ Kullanım: `.transfer @oyuncu <takım_id>` (Örn: `.transfer @Ahmet rmadrid`)');
-        }
-
-        const club = clubData.get(clubId);
-        const p = getPlayer(target.id, target.displayName);
-        p.team = club.name;
-
-        club.squad.push({ pos: 'YDK', name: target.displayName, val: p.value, isNpc: false, id: target.id });
-
-        const targetMember = await message.guild.members.fetch(target.id);
-        const teamRole = message.guild.roles.cache.find(r => r.name === club.roleName);
-        if (teamRole) await targetMember.roles.add(teamRole);
-
-        return message.channel.send(`🎉 **${target.displayName}**, **${club.name}** takımına transfer oldu!`);
-    }
-
-    // ==========================================
-    // 5. REHBER VE KOMUT LİSTESİ (.komutlar)
-    // ==========================================
+    // KOMUTLAR LİSTESİ
     if (command === '.komutlar' || command === '.rehber') {
         const embed = new EmbedBuilder()
             .setTitle('📖 Freeze League Komut Paneli')
             .setColor('#2b2d31')
             .setDescription(
                 '**⚙️ Yetkili Komutları:**\n' +
-                '• `.kur` : Tüm kanalları siler ve dev lig sistemini izinleriyle kurar.\n' +
-                '• `.dver @oyuncu <miktar>` : Oyuncunun piyasa değerini artırır.\n' +
-                '• `.dal @oyuncu <miktar>` : Oyuncunun piyasa değerini düşürür.\n' +
-                '• `.kaydet @üye <Futbolcu/TD> <TakımID>` : Üyeyi onaylar ve rolünü verir.\n\n' +
+                '• `.kur` : Tüm lig sistemini ve kanallarını kurar.\n' +
+                '• `.dver @oyuncu <miktar>` : Oyuncu değerini artırır.\n' +
+                '• `.dal @oyuncu <miktar>` : Oyuncu değerini düşürür.\n\n' +
                 '**🏟️ Taktik ve Kadro:**\n' +
-                '• `!taktik <takım_id>` : Takım kadrosunu ve saha içi butonlu paneli açar.\n' +
-                '• `.transfer @oyuncu <takım_id>` : Oyuncuyu takıma transfer eder.'
+                '• `!taktik <takım_id>` : Takım kadrosunu gösterir.'
             );
         return message.channel.send({ embeds: [embed] });
     }
 });
 
 // ==========================================
-// 6. ETKİLEŞİMLER, MODALLAR VE OTOMATİK T.D. KAYDI
+// 6. ETKİLEŞİMLER (BUTTON & MODAL)
 // ==========================================
 client.on('interactionCreate', async (interaction) => {
     try {
@@ -369,8 +322,8 @@ client.on('interactionCreate', async (interaction) => {
             if (interaction.customId === 'btn_reg_td') {
                 const modal = new ModalBuilder().setCustomId('modal_reg_td').setTitle('Teknik Direktör Kayıt Formu');
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_info').setLabel('İsim | Ülke | Yaş | Kupa Sayısı').setPlaceholder('Örn: Kenan Papi | 🇹🇷 | 35 | 2 Kupa').setStyle(TextInputStyle.Short).setRequired(true)),
-                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_team').setLabel('İstediğiniz Takım ID (rmadrid, barca vb.)').setStyle(TextInputStyle.Short).setRequired(true))
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_info').setLabel('İsim | Ülke | Yaş').setPlaceholder('Örn: Kenan Papi | 🇹🇷 | 35').setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('td_team').setLabel('Takım ID (rmadrid, barca vb.)').setStyle(TextInputStyle.Short).setRequired(true))
                 );
                 return await interaction.showModal(modal);
             }
@@ -387,7 +340,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (!club) return await interaction.reply({ content: '❌ Geçersiz Takım ID!', ephemeral: true });
 
                 if (club.manager) {
-                    return await interaction.reply({ content: `❌ **${club.name}** takımının zaten bir Teknik Direktörü var (<@${club.manager}>)!`, ephemeral: true });
+                    return await interaction.reply({ content: `❌ **${club.name}** takımının zaten bir T.D'si var!`, ephemeral: true });
                 }
 
                 club.manager = interaction.user.id;
@@ -409,7 +362,7 @@ client.on('interactionCreate', async (interaction) => {
                     .setDescription(`**T.D.:** <@${interaction.user.id}>\n**Takım:** ${club.name}\n**Bilgiler:** ${info}`);
 
                 if (logCh) await logCh.send({ embeds: [embed] });
-                return await interaction.reply({ content: `✅ Tebrikler! **${club.name}** Teknik Direktörü oldunuz. Kayıtsız rolünüz kaldırıldı ve takım izinleriniz verildi.`, ephemeral: true });
+                return await interaction.reply({ content: `✅ Tebrikler! **${club.name}** Teknik Direktörü oldunuz.`, ephemeral: true });
             }
         }
     } catch (err) {
@@ -418,19 +371,15 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 // ==========================================
-// GÜVENLİ BAĞLANTI & DETAYLI HATA LOGLARI
+// 7. GÜVENLİ BAĞLANTI (BOT LOGIN)
 // ==========================================
 const token = process.env.TOKEN || process.env.DISCORD_TOKEN;
 
 if (!token) {
-    console.error('❌ KRİTİK HATA: Ortam değişkenlerinde TOKEN veya DISCORD_TOKEN bulunamadı!');
+    console.error('❌ KRİTİK HATA: Ortam değişkenlerinde TOKEN bulunamadı!');
 } else {
-    // Token başını ve sonunu göstererek doğru yüklendiğini teyit et
-    const maskedToken = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-    console.log(`🔑 Token bulundu (${maskedToken}), Discord servislerine bağlanılıyor...`);
-    
+    console.log('🔑 Token okundu, Discord ağ bağlantısı başlatılıyor...');
     client.login(token).catch(err => {
-        console.error('❌ DISCORD GİRİŞ HATASI DETAYI:');
-        console.error(err);
+        console.error('❌ BOTA GİRİŞ YAPILAMADI! SEBEP:', err.message);
     });
 }
