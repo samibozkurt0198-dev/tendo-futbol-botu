@@ -15,6 +15,15 @@ const {
 const http = require('http');
 require('dotenv').config();
 
+// Beklenmeyen Hataları Loglara Yazdırma (Crash Önleyici)
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ YAKALANAMAYAN HATA (Unhandled Rejection):', reason);
+});
+
+process.on('uncaughtException', (err, origin) => {
+    console.error('❌ KRİTİK HATA (Uncaught Exception):', err);
+});
+
 // ==========================================
 // RENDER İÇİN UPTIME / PORT SUNUCUSU (10000)
 // ==========================================
@@ -106,7 +115,9 @@ async function updateFreeTeamsChannel(guild) {
 }
 
 client.on('ready', () => {
+    console.log(`🤖 =============================================`);
     console.log(`🤖 ${client.user.tag} Görsel Uyumlu Lig Botu Başarıyla Giriş Yaptı ve Aktif!`);
+    console.log(`🤖 =============================================`);
 });
 
 // Otomatik Kayıtsız Rolü
@@ -115,7 +126,7 @@ client.on('guildMemberAdd', async (member) => {
         const unregRole = member.guild.roles.cache.find(r => r.name === 'Kayıtsız');
         if (unregRole) await member.roles.add(unregRole);
     } catch (e) {
-        console.error(e);
+        console.error('Kayıtsız rolü verme hatası:', e);
     }
 });
 
@@ -218,7 +229,7 @@ client.on('messageCreate', async (message) => {
 
             return statusMsg.edit(`✅ **Freeze League Dev Altyapısı Kuruldu!**\n\n• **Boş Takımlar:** ${chBosTakimlar}\n• **Kayıt Kanalı:** ${chKayit}\n• Tüm takım kanalları ve rol izinleri başarıyla entegre edildi.`);
         } catch (e) {
-            console.error(e);
+            console.error('Kurulum hatası:', e);
             return statusMsg.edit('❌ Kurulum sırasında hata oluştu.');
         }
     }
@@ -402,21 +413,24 @@ client.on('interactionCreate', async (interaction) => {
             }
         }
     } catch (err) {
-        console.error(err);
+        console.error('Etkileşim hatası:', err);
     }
 });
 
 // ==========================================
-// GÜVENLİ BAĞLANTI & HATA AYIKLAMA (DEBUG)
+// GÜVENLİ BAĞLANTI & DETAYLI HATA LOGLARI
 // ==========================================
 const token = process.env.TOKEN || process.env.DISCORD_TOKEN;
 
 if (!token) {
     console.error('❌ KRİTİK HATA: Ortam değişkenlerinde TOKEN veya DISCORD_TOKEN bulunamadı!');
 } else {
-    console.log('🔑 Token bulundu, Discord servislerine bağlanılıyor...');
+    // Token başını ve sonunu göstererek doğru yüklendiğini teyit et
+    const maskedToken = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+    console.log(`🔑 Token bulundu (${maskedToken}), Discord servislerine bağlanılıyor...`);
+    
     client.login(token).catch(err => {
-        console.error('❌ Discord Giriş Hatası:', err.message);
+        console.error('❌ DISCORD GİRİŞ HATASI DETAYI:');
+        console.error(err);
     });
 }
-
