@@ -15,11 +15,16 @@ const {
 const http = require('http');
 require('dotenv').config();
 
-// Uptime Sunucusu
+// ==========================================
+// RENDER İÇİN UPTIME / PORT SUNUCUSU (10000)
+// ==========================================
+const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Freeze League Pro Altyapı Aktif!');
-}).listen(process.env.PORT || 3000);
+}).listen(PORT, () => {
+    console.log(`🌐 Web sunucusu ${PORT} portunda başarıyla dinleniyor.`);
+});
 
 const client = new Client({
     intents: [
@@ -101,7 +106,7 @@ async function updateFreeTeamsChannel(guild) {
 }
 
 client.on('ready', () => {
-    console.log(`🤖 ${client.user.tag} Görsel Uyumlu Lig Botu Aktif!`);
+    console.log(`🤖 ${client.user.tag} Görsel Uyumlu Lig Botu Başarıyla Giriş Yaptı ve Aktif!`);
 });
 
 // Otomatik Kayıtsız Rolü
@@ -272,7 +277,7 @@ client.on('messageCreate', async (message) => {
                 `🎯 **Taktik:** ${club.mentality} • ${club.pres} • ${club.tempo}\n\n` +
                 `**İlk 11 Listesi:**\n${squadList}`
             )
-            .setImage('https://i.imgur.com/8Q9Z4fE.png') // Temsili Saha İçi Diziliş Şeması Görseli
+            .setImage('https://i.imgur.com/8Q9Z4fE.png')
             .setFooter({ text: 'Bir pozisyona oyuncu koymak/değiştirmek için butonları kullanın.' });
 
         const row1 = new ActionRowBuilder().addComponents(
@@ -306,7 +311,6 @@ client.on('messageCreate', async (message) => {
         const p = getPlayer(target.id, target.displayName);
         p.team = club.name;
 
-        // Kadroya ekle
         club.squad.push({ pos: 'YDK', name: target.displayName, val: p.value, isNpc: false, id: target.id });
 
         const targetMember = await message.guild.members.fetch(target.id);
@@ -375,7 +379,6 @@ client.on('interactionCreate', async (interaction) => {
                     return await interaction.reply({ content: `❌ **${club.name}** takımının zaten bir Teknik Direktörü var (<@${club.manager}>)!`, ephemeral: true });
                 }
 
-                // Otomatik T.D. Atama ve Rol Güncelleme
                 club.manager = interaction.user.id;
                 const member = interaction.member;
 
@@ -387,7 +390,6 @@ client.on('interactionCreate', async (interaction) => {
                 if (tdRole) await member.roles.add(tdRole);
                 if (clubRole) await member.roles.add(clubRole);
 
-                // Boş Takımlar Kanalını Güncelle
                 await updateFreeTeamsChannel(interaction.guild);
 
                 const embed = new EmbedBuilder()
@@ -404,4 +406,17 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-client.login(process.env.TOKEN);
+// ==========================================
+// GÜVENLİ BAĞLANTI & HATA AYIKLAMA (DEBUG)
+// ==========================================
+const token = process.env.TOKEN || process.env.DISCORD_TOKEN;
+
+if (!token) {
+    console.error('❌ KRİTİK HATA: Ortam değişkenlerinde TOKEN veya DISCORD_TOKEN bulunamadı!');
+} else {
+    console.log('🔑 Token bulundu, Discord servislerine bağlanılıyor...');
+    client.login(token).catch(err => {
+        console.error('❌ Discord Giriş Hatası:', err.message);
+    });
+}
+
